@@ -1,111 +1,158 @@
+/* ============================================================
+   CLUBOPS SAAS DESIGN SYSTEM TOKENS & BASE STYLES
+   Dark Technical SaaS Aesthetic (Linear / Vercel / CodeBite)
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Typography */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Space Grotesk", "Plus Jakarta Sans", var(--font-sans);
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Color Palette - Premium Dark Editorial & Brutalist */
+  --bg-canvas: #080808;
+  --bg-surface: #0f0f0f;
+  --bg-surface-hover: #161616;
+  --bg-subtle: #1a1a1a;
+  --bg-panel-light: #f5f2eb;
+  --text-panel-dark: #0a0a0a;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
+  /* Borders */
+  --border-subtle: #1c1c1c;
+  --border-default: #262626;
+  --border-hover: #3d3d3d;
+  --border-focus: #ff2948;
+  --border-bold: rgba(255, 255, 255, 0.25);
+
+  /* Text colors */
+  --text-primary: #f5f2eb;
+  --text-secondary: #999999;
+  --text-muted: #666666;
+  --text-inverse: #080808;
+
+  /* Brand Accent - Signature Hot Red */
+  --color-primary: #ff2948;
+  --color-primary-hover: #e01e3c;
+  --color-primary-active: #c7102c;
+  --color-primary-light: rgba(255, 41, 72, 0.12);
+  --color-primary-border: rgba(255, 41, 72, 0.35);
+
+  /* Semantic */
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-success-text: #34d399;
+  --color-success-border: rgba(16, 185, 129, 0.25);
+
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-warning-text: #fbbf24;
+  --color-warning-border: rgba(245, 158, 11, 0.25);
+
+  --color-danger: #ff2948;
+  --color-danger-hover: #e01e3c;
+  --color-danger-bg: rgba(255, 41, 72, 0.14);
+  --color-danger-text: #ff8093;
+  --color-danger-border: rgba(255, 41, 72, 0.35);
+
+  --color-ai: #ff2948;
+  --color-ai-hover: #e01e3c;
+  --color-ai-bg: rgba(255, 41, 72, 0.08);
+  --color-ai-text: #ff8093;
+  --color-ai-border: rgba(255, 41, 72, 0.3);
+
+  /* Brutalist Offset Shadows */
+  --shadow-brutal-red: 8px 8px 0px #ff2948;
+  --shadow-brutal-white: 6px 6px 0px #ffffff;
+  --shadow-brutal-dark: 6px 6px 0px #080808;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+
+  /* Sharp Rectangular Radii */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-full: 0px;
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-normal: 180ms ease;
+
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
 }
 
 body {
-  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  line-height: 1.5;
+  font-family: var(--font-sans);
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+/* Form element resets */
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+button {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  font-family: var(--font-sans);
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* Accessibility focus ring */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Modern clean dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232733;
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #333a4d;
 }
