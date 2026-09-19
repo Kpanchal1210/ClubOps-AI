@@ -5,36 +5,48 @@ const documentChunkSchema = new mongoose.Schema(
     documentId: {
       type: String,
       required: true,
-      index: true,
+      index: true
+    },
+
+    clubId: {
+      type: String,
+      required: true,
+      index: true
+    },
+
+    eventId: {
+      type: String,
+      default: null,
+      index: true
     },
 
     fileName: {
       type: String,
-      required: true,
+      required: true
     },
 
     chunkIndex: {
       type: Number,
-      required: true,
+      required: true
     },
 
     text: {
       type: String,
-      required: true,
+      required: true
     },
 
     embedding: {
       type: [Number],
-      required: true,
+      required: true
     },
 
     metadata: {
       type: mongoose.Schema.Types.Mixed,
-      default: {},
-    },
+      default: {}
+    }
   },
   {
-    timestamps: true,
+    timestamps: true
   }
 );
 

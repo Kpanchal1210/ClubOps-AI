@@ -1,11 +1,5 @@
 const axios = require("axios");
-
 const Club = require("../models/Club");
-
-// --------------------------------------------------
-// POST /api/rag/query
-// Backend → RAG Service
-// --------------------------------------------------
 
 const ragQuery = async (req, res) => {
     try {
@@ -16,9 +10,9 @@ const ragQuery = async (req, res) => {
             documentId
         } = req.body;
 
-        // --------------------------------------------------
+        // ------------------------------------------
         // Validate query
-        // --------------------------------------------------
+        // ------------------------------------------
 
         if (!query || !query.trim()) {
             return res.status(400).json({
@@ -27,9 +21,9 @@ const ragQuery = async (req, res) => {
             });
         }
 
-        // --------------------------------------------------
+        // ------------------------------------------
         // Validate clubId
-        // --------------------------------------------------
+        // ------------------------------------------
 
         if (!clubId) {
             return res.status(400).json({
@@ -38,9 +32,9 @@ const ragQuery = async (req, res) => {
             });
         }
 
-        // --------------------------------------------------
-        // Check club
-        // --------------------------------------------------
+        // ------------------------------------------
+        // Check club exists
+        // ------------------------------------------
 
         const club = await Club.findById(clubId);
 
@@ -51,9 +45,9 @@ const ragQuery = async (req, res) => {
             });
         }
 
-        // --------------------------------------------------
-        // Check membership
-        // --------------------------------------------------
+        // ------------------------------------------
+        // Check user is a club member
+        // ------------------------------------------
 
         const isMember = club.members.some(
             memberId =>
@@ -67,23 +61,25 @@ const ragQuery = async (req, res) => {
             });
         }
 
-        // --------------------------------------------------
-        // Call RAG Service
-        // --------------------------------------------------
-
         console.log("Sending query to RAG service...");
+
+        // ------------------------------------------
+        // Call RAG service
+        // ------------------------------------------
 
         const ragResponse = await axios.post(
             `${process.env.RAG_SERVICE_URL}/api/rag/ask`,
             {
                 question: query.trim(),
-                documentId: documentId || null
+                documentId: documentId || null,
+                clubId,
+                eventId: eventId || null
             }
         );
 
-        // --------------------------------------------------
-        // Return RAG response
-        // --------------------------------------------------
+        // ------------------------------------------
+        // Return response
+        // ------------------------------------------
 
         return res.json({
             success: true,
@@ -98,18 +94,23 @@ const ragQuery = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("RAG query error:", error.message);
+        console.error(
+            "RAG query error:",
+            error.message
+        );
 
-        // RAG service error
+        // RAG service returned an error
         if (error.response) {
             return res.status(502).json({
                 success: false,
                 message: "RAG service failed",
-                error: error.response.data?.message || error.message
+                error:
+                    error.response.data?.message ||
+                    error.message
             });
         }
 
-        // RAG service unavailable
+        // RAG service is not running
         if (error.code === "ECONNREFUSED") {
             return res.status(503).json({
                 success: false,

@@ -13,10 +13,16 @@ const app = express();
 
 app.use(express.json());
 
+// ==========================================
 // Connect to MongoDB Atlas
+// ==========================================
+
 connectDB();
 
-// File upload configuration
+// ==========================================
+// File Upload Configuration
+// ==========================================
+
 const upload = multer({
   storage: multer.memoryStorage(),
 });
@@ -42,7 +48,24 @@ app.post(
   upload.single("document"),
   async (req, res) => {
     try {
+      // ------------------------------------------
+      // Get club and event information
+      // ------------------------------------------
+
+      const { clubId, eventId } = req.body;
+
+      // clubId is required
+      if (!clubId) {
+        return res.status(400).json({
+          success: false,
+          message: "clubId is required",
+        });
+      }
+
+      // ------------------------------------------
       // Check if file exists
+      // ------------------------------------------
+
       if (!req.file) {
         return res.status(400).json({
           success: false,
@@ -50,7 +73,10 @@ app.post(
         });
       }
 
+      // ------------------------------------------
       // Only PDF files
+      // ------------------------------------------
+
       if (req.file.mimetype !== "application/pdf") {
         return res.status(400).json({
           success: false,
@@ -59,6 +85,8 @@ app.post(
       }
 
       console.log(`Processing: ${req.file.originalname}`);
+      console.log(`Club ID: ${clubId}`);
+      console.log(`Event ID: ${eventId || "N/A"}`);
 
       // ------------------------------------------
       // 1. Extract text from PDF
@@ -66,63 +94,108 @@ app.post(
 
       const result = await extractTextFromPDF(req.file.buffer);
 
-      console.log(`Extracted ${result.text.length} characters`);
+      console.log(
+        `Extracted ${result.text.length} characters`
+      );
 
       // ------------------------------------------
       // 2. Split text into chunks
       // ------------------------------------------
 
-      const chunks = chunkText(result.text, 500, 50);
+      const chunks = chunkText(
+        result.text,
+        500,
+        50
+      );
 
-      console.log(`Created ${chunks.length} chunks`);
+      console.log(
+        `Created ${chunks.length} chunks`
+      );
 
       // ------------------------------------------
-      // 3. Generate embeddings + save to MongoDB
+      // 3. Generate document ID
       // ------------------------------------------
 
       const documentId = `doc-${Date.now()}`;
 
       const savedChunks = [];
 
+      // ------------------------------------------
+      // 4. Generate embeddings + save to MongoDB
+      // ------------------------------------------
+
       for (const chunk of chunks) {
-        console.log(`Embedding chunk ${chunk.chunkIndex}...`);
+        console.log(
+          `Embedding chunk ${chunk.chunkIndex}...`
+        );
 
         // Generate Gemini embedding
-        const embedding = await generateEmbedding(chunk.text);
+        const embedding = await generateEmbedding(
+          chunk.text
+        );
 
         // Save chunk
-        const savedChunk = await DocumentChunk.create({
-          documentId,
-          fileName: req.file.originalname,
-          chunkIndex: chunk.chunkIndex,
-          text: chunk.text,
-          embedding,
-          metadata: {
-            pages: result.pages,
-          },
-        });
+        const savedChunk =
+          await DocumentChunk.create({
+            documentId,
+
+            clubId,
+
+            eventId: eventId || null,
+
+            fileName:
+              req.file.originalname,
+
+            chunkIndex:
+              chunk.chunkIndex,
+
+            text: chunk.text,
+
+            embedding,
+
+            metadata: {
+              pages: result.pages,
+            },
+          });
 
         savedChunks.push(savedChunk);
       }
 
-      console.log("All chunks saved successfully");
+      console.log(
+        "All chunks saved successfully"
+      );
 
       // ------------------------------------------
-      // 4. Send response
+      // 5. Send response
       // ------------------------------------------
 
-      res.json({
+      return res.json({
         success: true,
-        message: "Document processed successfully",
-        documentId,
-        fileName: req.file.originalname,
-        pages: result.pages,
-        totalChunks: savedChunks.length,
-      });
-    } catch (error) {
-      console.error("Upload processing error:", error);
+        message:
+          "Document processed successfully",
 
-      res.status(500).json({
+        documentId,
+
+        clubId,
+
+        eventId: eventId || null,
+
+        fileName:
+          req.file.originalname,
+
+        pages: result.pages,
+
+        totalChunks:
+          savedChunks.length,
+      });
+
+    } catch (error) {
+      console.error(
+        "Upload processing error:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
         message: error.message,
       });
@@ -132,60 +205,149 @@ app.post(
 
 // ==========================================
 // Ask Question
-// Question + Document ID
-// → Vector Search → Gemini → Answer
+//
+// Question
+// + documentId
+// + clubId
+// + eventId
+//
+// → Vector Search
+// → Gemini
+// → Answer
 // ==========================================
 
-app.post("/api/rag/ask", async (req, res) => {
-  try {
-    const { question, documentId } = req.body;
+app.post(
+  "/api/rag/ask",
+  async (req, res) => {
+    try {
+      // ------------------------------------------
+      // Get request data
+      // ------------------------------------------
 
-    // Check question
-    if (!question || question.trim() === "") {
-      return res.status(400).json({
+      const {
+        question,
+        documentId,
+        clubId,
+        eventId,
+      } = req.body;
+
+      // ------------------------------------------
+      // Validate question
+      // ------------------------------------------
+
+      if (
+        !question ||
+        question.trim() === ""
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Question is required",
+        });
+      }
+
+      // ------------------------------------------
+      // Validate clubId
+      // ------------------------------------------
+
+      if (!clubId) {
+        return res.status(400).json({
+          success: false,
+          message: "clubId is required",
+        });
+      }
+
+      console.log(
+        `RAG question: ${question}`
+      );
+
+      console.log(
+        `Club ID: ${clubId}`
+      );
+
+      // ------------------------------------------
+      // Show document ID
+      // ------------------------------------------
+
+      if (documentId) {
+        console.log(
+          `Document ID: ${documentId}`
+        );
+      } else {
+        console.log(
+          "No document ID provided."
+        );
+      }
+
+      // ------------------------------------------
+      // Show event ID
+      // ------------------------------------------
+
+      if (eventId) {
+        console.log(
+          `Event ID: ${eventId}`
+        );
+      } else {
+        console.log(
+          "No event ID provided."
+        );
+      }
+
+      // ------------------------------------------
+      // Generate RAG answer
+      // ------------------------------------------
+
+      const result =
+        await generateRAGAnswer(
+          question,
+          documentId || null,
+          clubId,
+          eventId || null
+        );
+
+      // ------------------------------------------
+      // Send response
+      // ------------------------------------------
+
+      return res.json({
+        success: true,
+
+        question,
+
+        documentId:
+          documentId || null,
+
+        clubId,
+
+        eventId:
+          eventId || null,
+
+        answer:
+          result.answer,
+
+        sources:
+          result.sources,
+      });
+
+    } catch (error) {
+      console.error(
+        "RAG ask error:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
-        message: "Question is required",
+        message: error.message,
       });
     }
-
-    console.log(`RAG question: ${question}`);
-
-    // Show document ID if provided
-    if (documentId) {
-      console.log(`Document ID: ${documentId}`);
-    } else {
-      console.log("No document ID provided. Searching all documents.");
-    }
-
-    // Generate RAG answer
-    const result = await generateRAGAnswer(
-      question,
-      documentId
-    );
-
-    // Send response
-    res.json({
-      success: true,
-      question,
-      documentId: documentId || null,
-      answer: result.answer,
-      sources: result.sources,
-    });
-  } catch (error) {
-    console.error("RAG ask error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
 
 // ==========================================
 // Start Server
 // ==========================================
 
-const PORT = process.env.PORT || 5001;
+const PORT =
+  process.env.PORT || 5001;
 
 app.listen(PORT, () => {
   console.log(

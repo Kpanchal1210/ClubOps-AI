@@ -7,13 +7,19 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-async function generateRAGAnswer(query, documentId = null) {
+async function generateRAGAnswer(
+  query,
+  documentId = null,
+  clubId = null,
+  eventId = null
+) {
   try {
-    // 1. Retrieve relevant chunks
     const chunks = await retrieveRelevantChunks(
       query,
       3,
-      documentId
+      documentId,
+      clubId,
+      eventId
     );
 
     if (!chunks || chunks.length === 0) {
@@ -24,12 +30,13 @@ async function generateRAGAnswer(query, documentId = null) {
       };
     }
 
-    // 2. Create context
     const context = chunks
       .map((chunk, index) => {
         return `Source ${index + 1}:
 File: ${chunk.fileName}
 Document ID: ${chunk.documentId}
+Club ID: ${chunk.clubId}
+Event ID: ${chunk.eventId || "N/A"}
 Chunk: ${chunk.chunkIndex}
 
 Content:
@@ -37,7 +44,6 @@ ${chunk.text}`;
       })
       .join("\n\n");
 
-    // 3. Prompt Gemini
     const prompt = `
 You are the ClubOps AI assistant.
 
@@ -60,17 +66,17 @@ ${query}
 Answer:
 `;
 
-    // 4. Generate answer
     const response = await ai.models.generateContent({
       model: "gemini-3.6-flash",
       contents: prompt,
     });
 
-    // 5. Return answer and sources
     return {
       answer: response.text,
       sources: chunks.map((chunk) => ({
         documentId: chunk.documentId,
+        clubId: chunk.clubId,
+        eventId: chunk.eventId,
         fileName: chunk.fileName,
         chunkIndex: chunk.chunkIndex,
         score: chunk.score,
