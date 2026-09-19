@@ -21,14 +21,11 @@ import {
 } from "lucide-react";
 
 import taskService from "../services/taskService";
-import { mockTasks } from "../mockData";
 import { safeStorage } from "../utils/storage";
 
 import TaskCard from "../components/TaskCard";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
-
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
 
 const EMPTY_FORM = {
   title: "",
@@ -44,10 +41,9 @@ export default function Tasks() {
   const [searchParams] = useSearchParams();
   const urlSearch = searchParams.get("search") || "";
 
-  // Direct initialization with mockTasks prevents blank screens on cold starts
-  const [tasks, setTasks] = useState(mockTasks);
-  const [eventId] = useState(() => safeStorage.getItem("eventId", "mock-event-1"));
-  const [loading, setLoading] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [eventId] = useState(() => safeStorage.getItem("eventId"));
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Filters & Search
@@ -68,18 +64,19 @@ export default function Tasks() {
 
   /* ── Load Tasks ─────────────────────────── */
   const loadTasks = async () => {
-    if (DEV_MODE) {
-      setTasks(mockTasks);
+    if (!eventId) {
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setError("");
 
     try {
       const result = await taskService.getEventTasks(eventId);
-      const list = result?.data || result || [];
-      setTasks(list.length ? list : mockTasks);
+      const list = result?.data?.tasks || result?.data || result || [];
+      setTasks(Array.isArray(list) ? list : []);
     } catch (err) {
-      setTasks(mockTasks);
+      setError(err.response?.data?.message || err.message || "Failed to load tasks.");
     } finally {
       setLoading(false);
     }
@@ -107,7 +104,7 @@ export default function Tasks() {
       deadline: task.deadline ? task.deadline.slice(0, 16) : "",
       assignedTo:
         typeof task.assignedTo === "object"
-          ? task.assignedTo?.name || ""
+          ? task.assignedTo?._id || task.assignedTo?.name || ""
           : task.assignedTo || "",
       source: task.source || "manual",
     });
@@ -122,53 +119,39 @@ export default function Tasks() {
     setFormError("");
 
     const payload = {
-      ...form,
+      title: form.title,
+      description: form.description,
+      priority: form.priority,
+      status: form.status,
+      deadline: form.deadline || undefined,
       eventId,
-      assignedTo: form.assignedTo ? { name: form.assignedTo } : null,
+      source: form.source || "manual",
     };
 
-    if (DEV_MODE) {
-      const mockId = editTask ? editTask._id || editTask.id : `t${Date.now()}`;
-      const saved = {
-        ...payload,
-        _id: mockId,
-        aiGenerated: form.source !== "manual",
-        createdAt: editTask?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      if (editTask) {
-        setTasks((prev) =>
-          prev.map((t) => ((t._id || t.id) === mockId ? saved : t))
-        );
-        if (selectedTask && (selectedTask._id || selectedTask.id) === mockId) {
-          setSelectedTask(saved);
-        }
-      } else {
-        setTasks((prev) => [saved, ...prev]);
-      }
-      setShowForm(false);
-      setFormLoading(false);
-      return;
+    if (form.assignedTo && /^[0-9a-fA-F]{24}$/.test(form.assignedTo)) {
+      payload.assignedTo = form.assignedTo;
     }
 
     try {
       if (editTask) {
         const res = await taskService.updateTask(editTask._id || editTask.id, payload);
-        const updated = res?.data || res;
+        const updated = res?.data?.task || res?.data || res;
         setTasks((prev) =>
           prev.map((t) =>
             (t._id || t.id) === (editTask._id || editTask.id) ? updated : t
           )
         );
+        if (selectedTask && (selectedTask._id || selectedTask.id) === (editTask._id || editTask.id)) {
+          setSelectedTask(updated);
+        }
       } else {
         const res = await taskService.createTask(payload);
-        const created = res?.data || res;
+        const created = res?.data?.task || res?.data || res;
         setTasks((prev) => [created, ...prev]);
       }
       setShowForm(false);
     } catch (err) {
-      setFormError(err.response?.data?.message || "Failed to save task.");
+      setFormError(err.response?.data?.message || err.message || "Failed to save task.");
     } finally {
       setFormLoading(false);
     }
@@ -186,12 +169,10 @@ export default function Tasks() {
       setSelectedTask((prev) => ({ ...prev, status: newStatus }));
     }
 
-    if (DEV_MODE) return;
-
     try {
       await taskService.updateTask(taskId, { status: newStatus });
     } catch (err) {
-      console.error(err);
+      console.error("Failed to update status:", err);
     }
   };
 
@@ -199,17 +180,14 @@ export default function Tasks() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this task?")) return;
 
-    setTasks((prev) => prev.filter((t) => (t._id || t.id) !== id));
-    if (selectedTask && (selectedTask._id || selectedTask.id) === id) {
-      setSelectedTask(null);
-    }
-
-    if (DEV_MODE) return;
-
     try {
       await taskService.deleteTask(id);
+      setTasks((prev) => prev.filter((t) => (t._id || t.id) !== id));
+      if (selectedTask && (selectedTask._id || selectedTask.id) === id) {
+        setSelectedTask(null);
+      }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete task.");
+      alert(err.response?.data?.message || err.message || "Failed to delete task.");
     }
   };
 

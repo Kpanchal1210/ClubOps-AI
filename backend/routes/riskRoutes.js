@@ -17,6 +17,8 @@ router.get("/event/:eventId", protect, getEventRisks);
 
 router.put("/:riskId", protect, updateRisk);
 
+router.patch("/:riskId", protect, updateRisk);
+
 router.delete("/:riskId", protect, deleteRisk);
 
 module.exports = router;

@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 
 import eventService from "../services/eventService";
-import { mockDashboard, mockEvents } from "../mockData";
 import { useAuth } from "../context/AuthContext";
 import { safeStorage } from "../utils/storage";
 
@@ -32,54 +31,54 @@ import RiskCard from "../components/RiskCard";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
   const [eventId, setEventId] = useState(
-    () => safeStorage.getItem("eventId", "mock-event-1")
+    () => safeStorage.getItem("eventId")
   );
-  // Initialize with mock data directly to guarantee immediate visual presentation with zero black-screen delay
-  const [dashboard, setDashboard] = useState(mockDashboard);
-  const [eventsList, setEventsList] = useState(mockEvents);
-  const [loading, setLoading] = useState(false);
+  const [dashboard, setDashboard] = useState(null);
+  const [eventsList, setEventsList] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [taskFilter, setTaskFilter] = useState("all"); // all | pending | in_progress | completed | overdue
+  const [taskFilter, setTaskFilter] = useState("all");
   const [aiCommand, setAiCommand] = useState("");
 
-  const loadDashboard = async (id = eventId) => {
-    if (DEV_MODE) {
-      setDashboard(mockDashboard);
-      setEventsList(mockEvents);
-      setLoading(false);
-      return;
-    }
+  const loadDashboard = async () => {
+    setLoading(true);
+    setError("");
 
     try {
-      const [dashRes, eventsRes] = await Promise.allSettled([
-        id ? eventService.getDashboard(id) : Promise.resolve(null),
-        eventService.getAllEvents ? eventService.getAllEvents() : Promise.resolve([]),
-      ]);
+      const eventsRes = await eventService.getAllEvents();
+      const el = eventsRes?.data?.events || eventsRes?.data || eventsRes || [];
+      const list = Array.isArray(el) ? el : [];
+      setEventsList(list);
 
-      if (dashRes.status === "fulfilled" && dashRes.value) {
-        const d = dashRes.value?.data || dashRes.value;
-        if (d) setDashboard(d);
+      let targetId = eventId;
+      if ((!targetId || !list.some((e) => (e._id || e.id) === targetId)) && list.length > 0) {
+        targetId = list[0]._id || list[0].id;
+        setEventId(targetId);
+        safeStorage.setItem("eventId", targetId);
       }
-      if (eventsRes.status === "fulfilled" && eventsRes.value) {
-        const el = eventsRes.value?.data || eventsRes.value;
-        if (Array.isArray(el) && el.length > 0) setEventsList(el);
+
+      if (targetId) {
+        const dashRes = await eventService.getDashboard(targetId);
+        const d = dashRes?.data || dashRes;
+        if (d) setDashboard(d);
+      } else {
+        setDashboard(null);
       }
     } catch (err) {
-      console.warn("Dashboard sync error; using operational state:", err);
+      console.warn("Dashboard sync error:", err);
+      setError(err.response?.data?.message || err.message || "Failed to load dashboard.");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadDashboard(eventId);
+    loadDashboard();
   }, [eventId]);
 
   const handleRunAgent = (e) => {
@@ -88,7 +87,7 @@ export default function Dashboard() {
     navigate(`/agent?prompt=${encodeURIComponent(cmd)}`);
   };
 
-  const formatDateSafe = (dateStr, fallback = "10-11 OCT 2026") => {
+  const formatDateSafe = (dateStr, fallback = "SCHEDULED") => {
     if (!dateStr) return fallback;
     try {
       const d = new Date(dateStr);
@@ -99,11 +98,15 @@ export default function Dashboard() {
     }
   };
 
+  if (loading) {
+    return <Loading message="Connecting to ClubOps API and loading workspace..." />;
+  }
+
   const stats = dashboard?.statistics || {};
-  const currentEvent = dashboard?.event || eventsList[0] || mockEvents[0];
+  const currentEvent = dashboard?.event || eventsList.find((e) => (e._id || e.id) === eventId) || eventsList[0] || null;
   const allTasks = dashboard?.tasks || [];
   const allRisks = dashboard?.risks || [];
-  const upcomingEvents = eventsList.length ? eventsList : mockEvents;
+  const upcomingEvents = eventsList;
 
   // Filter tasks
   const filteredTasks = allTasks.filter((task) => {
@@ -119,9 +122,29 @@ export default function Dashboard() {
     : 0;
 
   // Format event title for big editorial display
-  const eventNameWords = (currentEvent?.name || "HACKATHON 2026").toUpperCase().split(" ");
-  const titlePart1 = eventNameWords[0] || "HACKATHON";
-  const titlePart2 = eventNameWords.slice(1).join(" ") || "2026";
+  const eventNameWords = (currentEvent?.name || "ACTIVE EVENT").toUpperCase().split(" ");
+  const titlePart1 = eventNameWords[0] || "ACTIVE";
+  const titlePart2 = eventNameWords.slice(1).join(" ") || "OPERATION";
+
+  if (!currentEvent && eventsList.length === 0) {
+    return (
+      <div style={{ maxWidth: 1440, margin: "0 auto", padding: "40px 0" }}>
+        <div className="editorial-hero-card" style={{ textAlign: "center", padding: "60px 24px" }}>
+          <div className="hero-status-pill" style={{ margin: "0 auto 16px" }}>WELCOME TO CLUBOPS</div>
+          <h1 className="hero-editorial-title" style={{ fontSize: 36, marginBottom: 16 }}>
+            <span>NO ACTIVE</span><br /><span>OPERATIONS</span>
+          </h1>
+          <p className="hero-editorial-description" style={{ maxWidth: 500, margin: "0 auto 24px" }}>
+            You have connected to the backend, but haven't created any events yet. Create your first event to activate task management, meetings, and AI automation.
+          </p>
+          <Link to="/events" className="primary-button" style={{ display: "inline-flex", margin: "0 auto" }}>
+            <Plus size={16} />
+            <span>Create First Event</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 1440, margin: "0 auto" }}>

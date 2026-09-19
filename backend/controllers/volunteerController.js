@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Volunteer = require("../models/Volunteer");
 const Event = require("../models/Event");
 const Club = require("../models/Club");
@@ -8,18 +9,20 @@ const User = require("../models/User");
 // POST /api/volunteers
 const createVolunteer = async (req, res) => {
     try {
-        const {
+        let {
             eventId,
             userId,
+            name,
+            email,
             team,
             skills,
             availability
         } = req.body;
 
-        if (!eventId || !userId) {
+        if (!eventId || (!userId && !name)) {
             return res.status(400).json({
                 success: false,
-                message: "eventId and userId are required"
+                message: "eventId and either userId or name are required"
             });
         }
 
@@ -45,7 +48,24 @@ const createVolunteer = async (req, res) => {
             });
         }
 
-        const user = await User.findById(userId);
+        let user = null;
+        if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+            user = await User.findById(userId);
+        }
+
+        if (!user && name) {
+            const volEmail = email || `${name.toLowerCase().replace(/\s+/g, "")}${Date.now().toString().slice(-4)}@clubops.local`;
+            user = await User.findOne({ email: volEmail });
+            if (!user) {
+                user = await User.create({
+                    name: name.trim(),
+                    email: volEmail,
+                    passwordHash: "volunteer-auto-pwd",
+                    role: "member",
+                    clubId: event.clubId
+                });
+            }
+        }
 
         if (!user) {
             return res.status(404).json({
@@ -53,6 +73,8 @@ const createVolunteer = async (req, res) => {
                 message: "User not found"
             });
         }
+
+        userId = user._id;
 
         const existing = await Volunteer.findOne({
             eventId,

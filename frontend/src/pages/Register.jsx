@@ -15,8 +15,6 @@ import {
 import { useAuth } from "../context/AuthContext";
 import authService from "../services/authService";
 
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
 export default function Register() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -40,22 +38,17 @@ export default function Register() {
     setError("");
     setLoading(true);
 
-    // Dev mode auto-login
-    if (DEV_MODE) {
-      setTimeout(() => {
-        login("dev-mock-token", {
-          name: form.name,
-          email: form.email,
-          role: form.role,
-        });
-        navigate("/dashboard");
-      }, 450);
-      return;
-    }
-
     try {
-      await authService.register(form);
-      navigate("/login");
+      const res = await authService.register(form);
+      const data = res?.data || res;
+      const token = data?.token || res?.token;
+      const user = data?.user || res?.user;
+      if (token && user) {
+        login(token, user);
+        navigate("/dashboard");
+      } else {
+        navigate("/login");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed. Please try again.");
       setLoading(false);

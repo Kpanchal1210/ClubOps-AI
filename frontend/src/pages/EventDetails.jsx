@@ -30,15 +30,6 @@ import riskService from "../services/riskService";
 import volunteerService from "../services/volunteerService";
 import meetingService from "../services/meetingService";
 import documentService from "../services/documentService";
-import {
-  mockEvent,
-  mockEvents,
-  mockTasks,
-  mockRisks,
-  mockVolunteers,
-  mockMeetings,
-  mockDocuments,
-} from "../mockData";
 
 import StatCard from "../components/StatCard";
 import TaskCard from "../components/TaskCard";
@@ -48,14 +39,12 @@ import ErrorMessage from "../components/ErrorMessage";
 
 import { safeStorage } from "../utils/storage";
 
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
 export default function EventDetails() {
   const { id, eventId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const currentEventId = id || eventId || safeStorage.getItem("eventId", "mock-event-1");
+  const currentEventId = id || eventId || safeStorage.getItem("eventId");
 
   // Tab state: overview | tasks | volunteers | risks | meetings | documents
   const activeTab = searchParams.get("tab") || "overview";
@@ -64,17 +53,14 @@ export default function EventDetails() {
     setSearchParams({ tab });
   };
 
-  const initialEvent = mockEvents.find((e) => (e._id || e.id) === currentEventId) || mockEvent;
+  const [event, setEvent] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [risks, setRisks] = useState([]);
+  const [volunteers, setVolunteers] = useState([]);
+  const [meetings, setMeetings] = useState([]);
+  const [documents, setDocuments] = useState([]);
 
-  // Initialize with complete mock state so details page renders synchronously on mount
-  const [event, setEvent] = useState(initialEvent);
-  const [tasks, setTasks] = useState(mockTasks);
-  const [risks, setRisks] = useState(mockRisks);
-  const [volunteers, setVolunteers] = useState(mockVolunteers);
-  const [meetings, setMeetings] = useState(mockMeetings);
-  const [documents, setDocuments] = useState(mockDocuments);
-
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Documents / RAG search state
@@ -88,19 +74,13 @@ export default function EventDetails() {
   const [uploadDocType, setUploadDocType] = useState("PDF");
 
   const loadAllEventData = async () => {
-    safeStorage.setItem("eventId", currentEventId);
-
-    if (DEV_MODE) {
-      const found = mockEvents.find((e) => (e._id || e.id) === currentEventId) || mockEvent;
-      setEvent(found);
-      setTasks(mockTasks);
-      setRisks(mockRisks);
-      setVolunteers(mockVolunteers);
-      setMeetings(mockMeetings);
-      setDocuments(mockDocuments);
+    if (!currentEventId) {
       setLoading(false);
       return;
     }
+    safeStorage.setItem("eventId", currentEventId);
+    setLoading(true);
+    setError("");
 
     try {
       const [evtRes, tasksRes, risksRes, volsRes, meetingsRes, docsRes] = await Promise.allSettled([
@@ -113,31 +93,30 @@ export default function EventDetails() {
       ]);
 
       if (evtRes.status === "fulfilled" && evtRes.value) {
-        setEvent(evtRes.value?.data || evtRes.value);
-      } else {
-        const found = mockEvents.find((e) => (e._id || e.id) === currentEventId) || mockEvent;
-        setEvent(found);
+        setEvent(evtRes.value?.data?.event || evtRes.value?.data || evtRes.value);
       }
-
-      setTasks(tasksRes.status === "fulfilled" ? tasksRes.value?.data || tasksRes.value || mockTasks : mockTasks);
-      setRisks(risksRes.status === "fulfilled" ? risksRes.value?.data || risksRes.value || mockRisks : mockRisks);
-      setVolunteers(volsRes.status === "fulfilled" ? volsRes.value?.data || volsRes.value || mockVolunteers : mockVolunteers);
-
+      if (tasksRes.status === "fulfilled" && tasksRes.value) {
+        const t = tasksRes.value?.data?.tasks || tasksRes.value?.data || tasksRes.value;
+        setTasks(Array.isArray(t) ? t : []);
+      }
+      if (risksRes.status === "fulfilled" && risksRes.value) {
+        const r = risksRes.value?.data?.risks || risksRes.value?.data || risksRes.value;
+        setRisks(Array.isArray(r) ? r : []);
+      }
+      if (volsRes.status === "fulfilled" && volsRes.value) {
+        const v = volsRes.value?.data?.volunteers || volsRes.value?.data || volsRes.value;
+        setVolunteers(Array.isArray(v) ? v : []);
+      }
       if (meetingsRes.status === "fulfilled" && meetingsRes.value) {
-        const ml = meetingsRes.value?.data || meetingsRes.value;
-        setMeetings(Array.isArray(ml) && ml.length > 0 ? ml : mockMeetings);
-      } else {
-        setMeetings(mockMeetings);
+        const m = meetingsRes.value?.data?.meetings || meetingsRes.value?.data || meetingsRes.value;
+        setMeetings(Array.isArray(m) ? m : []);
       }
-
       if (docsRes.status === "fulfilled" && docsRes.value) {
-        const dl = docsRes.value?.data || docsRes.value;
-        setDocuments(Array.isArray(dl) && dl.length > 0 ? dl : mockDocuments);
-      } else {
-        setDocuments(mockDocuments);
+        const d = docsRes.value?.data?.documents || docsRes.value?.data || docsRes.value;
+        setDocuments(Array.isArray(d) ? d : []);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to load event workspace.");
+      setError(err.response?.data?.message || err.message || "Failed to load event workspace.");
     } finally {
       setLoading(false);
     }
@@ -155,17 +134,6 @@ export default function EventDetails() {
     setRagLoading(true);
     setRagAnswer(null);
 
-    if (DEV_MODE) {
-      setTimeout(() => {
-        setRagLoading(false);
-        setRagAnswer({
-          answer: `According to the uploaded "${documents[0]?.name || "Auditorium Safety Guidelines"}", sound checks must conclude 2 hours before main auditorium doors open. Catering staff must have food handler certification on file.`,
-          sources: [documents[0]?.name || "Auditorium_Safety_Guidelines_2026.pdf"],
-        });
-      }, 450);
-      return;
-    }
-
     try {
       const response = await documentService.queryRAG({
         query: ragQuery,
@@ -175,8 +143,8 @@ export default function EventDetails() {
       setRagAnswer(data);
     } catch (err) {
       setRagAnswer({
-        answer: `According to the uploaded "${documents[0]?.name || "Auditorium Safety Guidelines"}", sound checks must conclude 2 hours before main auditorium doors open.`,
-        sources: [documents[0]?.name || "Auditorium_Safety_Guidelines_2026.pdf"],
+        answer: err.response?.data?.message || err.message || "No relevant answers found in uploaded documents.",
+        sources: [],
       });
     } finally {
       setRagLoading(false);
@@ -198,36 +166,37 @@ export default function EventDetails() {
         : `${uploadDocName.trim()}.${uploadDocType.toLowerCase()}`,
       fileType: uploadDocType.toLowerCase(),
       type: uploadDocType,
-      event: event?.name || "Hackathon 2026",
       eventId: currentEventId,
-      uploadedBy: "Rahul Patel",
-      status: "processed",
-      date: new Date().toISOString(),
-      size: "1.5 MB",
     };
 
-    if (!DEV_MODE) {
-      try {
-        const response = await documentService.uploadDocument(newDoc);
-        const created = response?.data || response;
-        if (created) {
-          setDocuments((prev) => [created, ...prev]);
-          setShowDocUpload(false);
-          setUploadDocName("");
-          return;
-        }
-      } catch (err) {
-        console.warn("Document upload API fallback:", err);
+    try {
+      const response = await documentService.uploadDocument(newDoc);
+      const created = response?.data || response;
+      if (created) {
+        setDocuments((prev) => [created, ...prev]);
       }
+      setShowDocUpload(false);
+      setUploadDocName("");
+    } catch (err) {
+      console.error("Document upload failed:", err);
+      alert(err.response?.data?.message || "Document upload failed.");
     }
-
-    setDocuments((prev) => [{ _id: `doc-${Date.now()}`, ...newDoc }, ...prev]);
-    setShowDocUpload(false);
-    setUploadDocName("");
   };
 
   if (loading && !event) {
     return <Loading type="cards" count={3} message="Loading event workspace..." />;
+  }
+
+  if (!event && !loading) {
+    return (
+      <div className="empty-state" style={{ padding: 40 }}>
+        <h2>Event not found</h2>
+        <p>This event might have been removed or does not exist.</p>
+        <Link to="/events" className="primary-button" style={{ display: "inline-flex", marginTop: 12 }}>
+          Back to Events
+        </Link>
+      </div>
+    );
   }
 
   if (error && !event) {

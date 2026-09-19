@@ -1,10 +1,17 @@
 const AgentAction = require("../models/AgentAction");
 
+let runAgent;
+try {
+    runAgent = require("../ai/agent/agent").runAgent;
+} catch (e) {
+    runAgent = null;
+}
+
 
 // POST /api/agent/command
 const createAgentAction = async (req, res) => {
     try {
-        const {
+        let {
             command,
             intent,
             tool,
@@ -12,21 +19,44 @@ const createAgentAction = async (req, res) => {
             eventId
         } = req.body;
 
-        if (!command || !intent) {
+        if (!command) {
             return res.status(400).json({
                 success: false,
-                message: "command and intent are required"
+                message: "command is required"
             });
+        }
+
+        let result = null;
+        let status = "pending";
+
+        if (!intent && runAgent && eventId) {
+            try {
+                const agentRes = await runAgent({
+                    command,
+                    userId: req.user.userId,
+                    eventId
+                });
+                intent = agentRes.intent;
+                parameters = agentRes.parameters;
+                result = agentRes.result;
+                status = "completed";
+            } catch (err) {
+                console.error("runAgent error:", err.message);
+                intent = intent || "UNKNOWN";
+                status = "failed";
+                result = { error: err.message };
+            }
         }
 
         const action = await AgentAction.create({
             userId: req.user.userId,
-            eventId,
+            eventId: eventId || undefined,
             command,
-            intent,
-            tool,
+            intent: intent || "GENERAL_QUERY",
+            tool: tool || (intent ? intent.toLowerCase() : undefined),
             parameters: parameters || {},
-            status: "pending"
+            status: status || "pending",
+            result
         });
 
         res.status(201).json({
@@ -48,9 +78,15 @@ const createAgentAction = async (req, res) => {
 // GET /api/agent/actions
 const getAgentActions = async (req, res) => {
     try {
-        const actions = await AgentAction.find({
+        const query = {
             userId: req.user.userId
-        })
+        };
+
+        if (req.query.eventId) {
+            query.eventId = req.query.eventId;
+        }
+
+        const actions = await AgentAction.find(query)
             .populate("eventId", "name")
             .sort({ createdAt: -1 });
 

@@ -15,15 +15,11 @@ import {
   Check,
 } from "lucide-react";
 
-import { mockAIResult } from "../mockData";
 import { safeStorage } from "../utils/storage";
-
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
 
 export default function AIResults() {
   const navigate = useNavigate();
-  // Initialize synchronously with stored result or mockAIResult so it never mounts to null/empty
-  const [result, setResult] = useState(() => safeStorage.getJSON("aiResult", mockAIResult));
+  const [result, setResult] = useState(() => safeStorage.getJSON("aiResult"));
   const [addedTasks, setAddedTasks] = useState({});
   const [addedRisks, setAddedRisks] = useState({});
 
@@ -31,8 +27,6 @@ export default function AIResults() {
     const saved = safeStorage.getJSON("aiResult");
     if (saved) {
       setResult(saved);
-    } else if (DEV_MODE) {
-      setResult(mockAIResult);
     }
   }, []);
 

@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 
 const User = require("../models/User");
 
@@ -33,7 +34,8 @@ const register = async (req, res) => {
             name,
             email,
             password,
-            clubId
+            clubId,
+            role
         } = req.body;
 
 
@@ -75,9 +77,9 @@ const register = async (req, res) => {
         );
 
 
-        // IMPORTANT:
-        // Every newly registered user is a MEMBER.
-        // Client cannot create admin/organizer accounts.
+        const assignedRole = role && ["admin", "organizer", "member"].includes(role) ? role : "member";
+        const validClubId = clubId && mongoose.Types.ObjectId.isValid(clubId) ? clubId : undefined;
+
         const user = await User.create({
             name: name.trim(),
 
@@ -87,9 +89,9 @@ const register = async (req, res) => {
 
             passwordHash,
 
-            role: "member",
+            role: assignedRole,
 
-            clubId: clubId || undefined
+            clubId: validClubId
         });
 
 
@@ -122,7 +124,7 @@ const register = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Registration failed",
+            message: error.message || "Registration failed",
             error: error.message
         });
     }

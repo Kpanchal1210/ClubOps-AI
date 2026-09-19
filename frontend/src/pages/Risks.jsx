@@ -17,14 +17,11 @@ import {
 } from "lucide-react";
 
 import riskService from "../services/riskService";
-import { mockRisks } from "../mockData";
 import { safeStorage } from "../utils/storage";
 
 import RiskCard from "../components/RiskCard";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
-
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
 
 const EMPTY_FORM = {
   title: "",
@@ -38,10 +35,9 @@ const EMPTY_FORM = {
 };
 
 export default function Risks() {
-  // Initialize with mockRisks directly to eliminate blank screens on cold starts
-  const [risks, setRisks] = useState(mockRisks);
-  const [eventId] = useState(() => safeStorage.getItem("eventId", "mock-event-1"));
-  const [loading, setLoading] = useState(false);
+  const [risks, setRisks] = useState([]);
+  const [eventId] = useState(() => safeStorage.getItem("eventId"));
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Filters & Search
@@ -60,18 +56,19 @@ export default function Risks() {
 
   /* ── Load Risks ─────────────────────────── */
   const loadRisks = async () => {
-    if (DEV_MODE) {
-      setRisks(mockRisks);
+    if (!eventId) {
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setError("");
 
     try {
       const result = await riskService.getEventRisks(eventId);
-      const list = result?.data || result || [];
-      setRisks(list.length ? list : mockRisks);
+      const list = result?.data?.risks || result?.data || result || [];
+      setRisks(Array.isArray(list) ? list : []);
     } catch (err) {
-      setRisks(mockRisks);
+      setError(err.response?.data?.message || err.message || "Failed to load risks.");
     } finally {
       setLoading(false);
     }
@@ -101,7 +98,7 @@ export default function Risks() {
       recommendedAction: risk.recommendedAction || "",
       assignedTo:
         typeof risk.assignedTo === "object"
-          ? risk.assignedTo?.name || ""
+          ? risk.assignedTo?._id || risk.assignedTo?.name || ""
           : risk.assignedTo || "",
     });
     setFormError("");
@@ -115,31 +112,24 @@ export default function Risks() {
     setFormError("");
 
     const payload = {
-      ...form,
+      title: form.title,
+      description: form.description,
+      severity: form.severity,
+      probability: form.probability,
+      status: form.status,
+      detectedBy: form.detectedBy || "manual",
+      recommendedAction: form.recommendedAction,
       eventId,
-      assignedTo: form.assignedTo ? { name: form.assignedTo } : null,
     };
 
-    if (DEV_MODE) {
-      const mockId = editRisk ? editRisk._id || editRisk.id : `r${Date.now()}`;
-      const saved = { ...payload, _id: mockId };
-
-      if (editRisk) {
-        setRisks((prev) =>
-          prev.map((r) => ((r._id || r.id) === mockId ? saved : r))
-        );
-      } else {
-        setRisks((prev) => [saved, ...prev]);
-      }
-      setShowForm(false);
-      setFormLoading(false);
-      return;
+    if (form.assignedTo && /^[0-9a-fA-F]{24}$/.test(form.assignedTo)) {
+      payload.assignedTo = form.assignedTo;
     }
 
     try {
       if (editRisk) {
         const res = await riskService.updateRisk(editRisk._id || editRisk.id, payload);
-        const updated = res?.data || res;
+        const updated = res?.data?.risk || res?.data || res;
         setRisks((prev) =>
           prev.map((r) =>
             (r._id || r.id) === (editRisk._id || editRisk.id) ? updated : r
@@ -147,12 +137,12 @@ export default function Risks() {
         );
       } else {
         const res = await riskService.createRisk(payload);
-        const created = res?.data || res;
+        const created = res?.data?.risk || res?.data || res;
         setRisks((prev) => [created, ...prev]);
       }
       setShowForm(false);
     } catch (err) {
-      setFormError(err.response?.data?.message || "Failed to save risk.");
+      setFormError(err.response?.data?.message || err.message || "Failed to save risk.");
     } finally {
       setFormLoading(false);
     }
@@ -164,12 +154,10 @@ export default function Risks() {
       prev.map((r) => ((r._id || r.id) === id ? { ...r, status: "resolved" } : r))
     );
 
-    if (DEV_MODE) return;
-
     try {
       await riskService.updateRisk(id, { status: "resolved" });
     } catch (err) {
-      console.error(err);
+      console.error("Failed to resolve risk:", err);
     }
   };
 
@@ -177,14 +165,11 @@ export default function Risks() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this risk?")) return;
 
-    setRisks((prev) => prev.filter((r) => (r._id || r.id) !== id));
-
-    if (DEV_MODE) return;
-
     try {
       await riskService.deleteRisk(id);
+      setRisks((prev) => prev.filter((r) => (r._id || r.id) !== id));
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to delete risk.");
+      alert(err.response?.data?.message || err.message || "Failed to delete risk.");
     }
   };
 

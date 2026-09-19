@@ -14,18 +14,14 @@ import {
 } from "lucide-react";
 
 import volunteerService from "../services/volunteerService";
-import { mockVolunteers } from "../mockData";
 import { safeStorage } from "../utils/storage";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
 export default function Volunteers() {
-  // Initialize with mockVolunteers directly to prevent cold start blank screens
-  const [volunteers, setVolunteers] = useState(mockVolunteers);
-  const [eventId] = useState(() => safeStorage.getItem("eventId", "mock-event-1"));
-  const [loading, setLoading] = useState(false);
+  const [volunteers, setVolunteers] = useState([]);
+  const [eventId] = useState(() => safeStorage.getItem("eventId"));
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Filters & Search
@@ -43,18 +39,19 @@ export default function Volunteers() {
   });
 
   const loadVolunteers = async () => {
-    if (DEV_MODE) {
-      setVolunteers(mockVolunteers);
+    if (!eventId) {
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setError("");
 
     try {
       const result = await volunteerService.getEventVolunteers(eventId);
-      const list = result?.data || result || [];
-      setVolunteers(list.length ? list : mockVolunteers);
+      const list = result?.data?.volunteers || result?.data || result || [];
+      setVolunteers(Array.isArray(list) ? list : []);
     } catch (err) {
-      setVolunteers(mockVolunteers);
+      setError(err.response?.data?.message || err.message || "Failed to load volunteers.");
     } finally {
       setLoading(false);
     }
@@ -64,31 +61,44 @@ export default function Volunteers() {
     loadVolunteers();
   }, [eventId]);
 
-  const handleAddVolunteer = (e) => {
+  const handleAddVolunteer = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) return;
 
-    const newVol = {
-      _id: `v-${Date.now()}`,
-      eventId,
-      userId: { name: form.name.trim() },
-      team: form.team,
-      skills: form.skills.split(",").map((s) => s.trim()).filter(Boolean),
-      availability: form.availability,
-      assignedTasks: [],
-    };
+    try {
+      const skillsArray = form.skills.split(",").map((s) => s.trim()).filter(Boolean);
+      const payload = {
+        eventId,
+        name: form.name.trim(),
+        team: form.team,
+        skills: skillsArray,
+        availability: form.availability,
+      };
 
-    setVolunteers((prev) => [newVol, ...prev]);
-    setShowAddModal(false);
-    setForm({ name: "", team: "Logistics", skills: "", availability: "available" });
+      const result = await volunteerService.createVolunteer(payload);
+      const created = result?.data?.volunteer || result?.data || result;
+      if (created) {
+        setVolunteers((prev) => [created, ...prev]);
+      }
+      setShowAddModal(false);
+      setForm({ name: "", team: "Logistics", skills: "", availability: "available" });
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || "Failed to add volunteer.");
+    }
   };
 
-  const handleToggleAvailability = (volId, newStatus) => {
+  const handleToggleAvailability = async (volId, newStatus) => {
     setVolunteers((prev) =>
       prev.map((v) =>
         (v._id || v.id) === volId ? { ...v, availability: newStatus } : v
       )
     );
+
+    try {
+      await volunteerService.updateVolunteer(volId, { availability: newStatus });
+    } catch (err) {
+      console.error("Failed to update availability:", err);
+    }
   };
 
   // Filter computation

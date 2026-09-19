@@ -29,6 +29,8 @@ router.get("/:meetingId", protect, getMeetingById);
 
 router.put("/:meetingId", protect, updateMeeting);
 
+router.patch("/:meetingId", protect, updateMeeting);
+
 router.delete("/:meetingId", protect, deleteMeeting);
 
 

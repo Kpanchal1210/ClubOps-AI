@@ -297,10 +297,33 @@ const deleteDocument = async (req, res) => {
 };
 
 
+// GET /api/documents/event/:eventId
+const getEventDocuments = async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const documents = await Document.find({ eventId })
+            .populate("uploadedBy", "name email")
+            .sort({ createdAt: -1 });
+
+        res.json({
+            success: true,
+            data: documents
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to get event documents",
+            error: error.message
+        });
+    }
+};
+
+
 module.exports = {
     createDocument,
     getDocumentById,
     getClubDocuments,
+    getEventDocuments,
     processDocument,
     deleteDocument
 };

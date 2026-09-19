@@ -17,6 +17,8 @@ router.get("/event/:eventId", protect, getEventVolunteers);
 
 router.put("/:volunteerId", protect, updateVolunteer);
 
+router.patch("/:volunteerId", protect, updateVolunteer);
+
 router.delete("/:volunteerId", protect, deleteVolunteer);
 
 module.exports = router;

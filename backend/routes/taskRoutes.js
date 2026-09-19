@@ -17,6 +17,8 @@ router.get("/event/:eventId", protect, getEventTasks);
 
 router.put("/:taskId", protect, updateTask);
 
+router.patch("/:taskId", protect, updateTask);
+
 router.delete("/:taskId", protect, deleteTask);
 
 module.exports = router;

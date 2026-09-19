@@ -8,20 +8,46 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { mockNotifications, mockEvents } from "../mockData";
+import eventService from "../services/eventService";
+import notificationService from "../services/notificationService";
 import { safeStorage } from "../utils/storage";
 
 export default function Navbar({ onMenuToggle }) {
-  const { user, logout } = useAuth();
+  const { user, club, logout } = useAuth();
   const navigate = useNavigate();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [eventMenuOpen, setEventMenuOpen] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const menuRef = useRef(null);
   const eventMenuRef = useRef(null);
 
-  const eventId = safeStorage.getItem("eventId", "mock-event-1");
-  const activeEvent = mockEvents.find((e) => (e._id || e.id) === eventId) || mockEvents[0];
-  const unreadCount = mockNotifications.filter((n) => !n.read).length;
+  const eventId = safeStorage.getItem("eventId");
+
+  useEffect(() => {
+    eventService.getAllEvents()
+      .then((res) => {
+        const list = res?.data?.events || res?.data || res || [];
+        if (Array.isArray(list)) {
+          setEvents(list);
+          if (!eventId && list.length > 0) {
+            safeStorage.setItem("eventId", list[0]._id || list[0].id);
+          }
+        }
+      })
+      .catch(() => {});
+
+    notificationService.getNotifications()
+      .then((res) => {
+        const notifs = res?.data || res || [];
+        if (Array.isArray(notifs)) {
+          setUnreadCount(notifs.filter((n) => !n.read).length);
+        }
+      })
+      .catch(() => {});
+  }, [eventId]);
+
+  const activeEvent = events.find((e) => (e._id || e.id) === eventId) || events[0];
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -37,14 +63,16 @@ export default function Navbar({ onMenuToggle }) {
   }, []);
 
   const userInitials = typeof user?.name === "string" && user.name.trim()
-    ? user.name.trim().split(" ").map((n) => n[0]).filter(Boolean).join("").slice(0, 2).toUpperCase() || "KP"
-    : "KP";
+    ? user.name.trim().split(" ").map((n) => n[0]).filter(Boolean).join("").slice(0, 2).toUpperCase() || "CO"
+    : "CO";
 
   const handleSelectEvent = (id) => {
     safeStorage.setItem("eventId", id);
     setEventMenuOpen(false);
     navigate(0); // Refresh context
   };
+
+  const clubName = club?.name ? club.name.toUpperCase() : "CLUBOPS";
 
   return (
     <header className="navbar-reference">
@@ -78,23 +106,29 @@ export default function Navbar({ onMenuToggle }) {
             onClick={() => setEventMenuOpen(!eventMenuOpen)}
             title="Switch Event Context"
           >
-            <span>CODING CLUB / {activeEvent?.name?.toUpperCase() || "HACKATHON 2026"}</span>
+            <span>{clubName} / {activeEvent?.name?.toUpperCase() || "SELECT EVENT"}</span>
             <ChevronDown size={13} style={{ opacity: 0.7 }} />
           </button>
 
           {eventMenuOpen && (
             <div className="navbar-event-dropdown">
               <div className="event-dropdown-header">SWITCH EVENT CONTEXT</div>
-              {mockEvents.map((evt) => (
-                <div
-                  key={evt.id || evt._id}
-                  onClick={() => handleSelectEvent(evt.id || evt._id)}
-                  className={`event-dropdown-item ${(evt.id || evt._id) === eventId ? "active" : ""}`}
-                >
-                  <span>{evt.name}</span>
-                  <span className="event-status-tag">{evt.status}</span>
+              {events.length > 0 ? (
+                events.map((evt) => (
+                  <div
+                    key={evt.id || evt._id}
+                    onClick={() => handleSelectEvent(evt.id || evt._id)}
+                    className={`event-dropdown-item ${(evt.id || evt._id) === eventId ? "active" : ""}`}
+                  >
+                    <span>{evt.name}</span>
+                    <span className="event-status-tag">{evt.status}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="event-dropdown-item" style={{ opacity: 0.6, cursor: "default" }}>
+                  <span>No events created yet</span>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>

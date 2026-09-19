@@ -17,12 +17,9 @@ import {
 } from "lucide-react";
 
 import eventService from "../services/eventService";
-import { mockEvents } from "../mockData";
 import { safeStorage } from "../utils/storage";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
-
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
 
 const EMPTY_FORM = {
   name: "",
@@ -38,9 +35,8 @@ const EMPTY_FORM = {
 export default function Events() {
   const navigate = useNavigate();
 
-  // Initialize with mockEvents directly to avoid blank screen on cold start
-  const [events, setEvents] = useState(mockEvents);
-  const [loading, setLoading] = useState(false);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Filters & Views
@@ -56,25 +52,15 @@ export default function Events() {
 
   /* ── Load events ──────────────────────────── */
   const loadEvents = async () => {
-    if (DEV_MODE) {
-      setEvents(mockEvents);
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
+    setError("");
 
     try {
-      if (eventService.getAllEvents) {
-        const result = await eventService.getAllEvents();
-        const list = result?.data || result || [];
-        setEvents(list.length ? list : mockEvents);
-      } else {
-        const result = await eventService.getEvent("all");
-        const list = result?.data || result || [];
-        setEvents(list.length ? list : mockEvents);
-      }
+      const result = await eventService.getAllEvents();
+      const list = result?.data?.events || result?.data || result || [];
+      setEvents(Array.isArray(list) ? list : []);
     } catch (err) {
-      // Fallback to mock data if backend not active
-      setEvents(mockEvents);
+      setError(err.response?.data?.message || err.message || "Failed to load events.");
     } finally {
       setLoading(false);
     }
@@ -102,26 +88,17 @@ export default function Events() {
       expectedVolunteers: Number(form.expectedVolunteers) || 0,
     };
 
-    if (DEV_MODE) {
-      const created = {
-        ...newEventData,
-        _id: `evt-${Date.now()}`,
-      };
-      setEvents((prev) => [created, ...prev]);
-      setShowForm(false);
-      setForm(EMPTY_FORM);
-      setFormLoading(false);
-      return;
-    }
-
     try {
       const result = await eventService.createEvent(newEventData);
-      const created = result?.data || result;
-      setEvents((prev) => [created, ...prev]);
+      const created = result?.data?.event || result?.data || result;
+      if (created) {
+        setEvents((prev) => [created, ...prev]);
+        safeStorage.setItem("eventId", created._id || created.id);
+      }
       setShowForm(false);
       setForm(EMPTY_FORM);
     } catch (err) {
-      setFormError(err.response?.data?.message || "Failed to create event.");
+      setFormError(err.response?.data?.message || err.message || "Failed to create event.");
     } finally {
       setFormLoading(false);
     }

@@ -16,19 +16,16 @@ import {
 } from "lucide-react";
 
 import meetingService from "../services/meetingService";
-import { mockMeetings, mockAIResult } from "../mockData";
 import { safeStorage } from "../utils/storage";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
 export default function Meetings() {
   const navigate = useNavigate();
 
-  const [meetings, setMeetings] = useState(mockMeetings);
-  const [eventId] = useState(() => safeStorage.getItem("eventId", "mock-event-1"));
-  const [loading, setLoading] = useState(false);
+  const [meetings, setMeetings] = useState([]);
+  const [eventId] = useState(() => safeStorage.getItem("eventId"));
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Modal states
@@ -39,29 +36,33 @@ export default function Meetings() {
   const [form, setForm] = useState({
     title: "",
     date: "",
-    eventId: safeStorage.getItem("eventId", "mock-event-1"),
+    eventId: safeStorage.getItem("eventId"),
     transcript: "",
   });
   const [processing, setProcessing] = useState(false);
   const [formError, setFormError] = useState("");
 
-  useEffect(() => {
-    if (DEV_MODE) {
-      setMeetings(mockMeetings);
+  const loadMeetings = async () => {
+    if (!eventId) {
+      setLoading(false);
       return;
     }
+    setLoading(true);
+    setError("");
 
-    meetingService
-      .getEventMeetings(eventId)
-      .then((res) => {
-        const list = res?.data || res || [];
-        if (Array.isArray(list) && list.length > 0) {
-          setMeetings(list);
-        } else {
-          setMeetings(mockMeetings);
-        }
-      })
-      .catch(() => setMeetings(mockMeetings));
+    try {
+      const res = await meetingService.getEventMeetings(eventId);
+      const list = res?.data?.meetings || res?.data || res || [];
+      setMeetings(Array.isArray(list) ? list : []);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || "Failed to load meetings.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMeetings();
   }, [eventId]);
 
   const handleChange = (e) => {
@@ -86,77 +87,11 @@ David: I will coordinate the AV team and run sound checks.`,
     setProcessing(true);
     setFormError("");
 
-    // Dev mode simulation
-    if (DEV_MODE) {
-      setTimeout(() => {
-        const newMeeting = {
-          _id: `meeting-${Date.now()}`,
-          eventId: form.eventId,
-          title: form.title,
-          date: form.date || new Date().toISOString(),
-          participants: ["Rahul Patel", "Alice Johnson", "David Lee", "Carol White"],
-          status: "processed",
-          summary: `Discussion covering auditorium setup, keynote travel schedule, and catering contract finalization.`,
-          transcript: form.transcript,
-        };
-
-        // Store active AI result
-        const generatedResult = {
-          ...mockAIResult,
-          _id: `ai-${Date.now()}`,
-          meetingId: newMeeting._id,
-          analysis: {
-            summary: `Planning meeting finalized Main Auditorium dates and AV testing milestones. Identified critical contract deadline for catering.`,
-            tasks: [
-              {
-                title: "Test stage PA system & projectors",
-                description: "Run sound checks and audio testing in Main Auditorium.",
-                priority: "high",
-                deadline: "2026-09-22",
-                ownerId: "user-4",
-              },
-              {
-                title: "Confirm speaker dietary preferences",
-                description: "Gather hospitality details for keynote Dr. Sharma.",
-                priority: "medium",
-                deadline: "2026-09-25",
-                ownerId: "user-3",
-              },
-            ],
-            risks: [
-              {
-                title: "Catering contract penalty risk",
-                description: "Contract must be finalized before Sep 24 to secure delivery.",
-                severity: "high",
-                probability: "medium",
-                recommendedAction: "Authorize and execute catering vendor agreement immediately.",
-              },
-            ],
-            decisions: [
-              "Auditorium reserved for Oct 1–3.",
-              "David will lead AV coordination.",
-            ],
-            actionItems: [
-              "David to run AV tests by Sep 22.",
-              "Carol to confirm hospitality by Sep 25.",
-            ],
-          },
-        };
-
-        safeStorage.setItem("aiResult", JSON.stringify(generatedResult));
-        setMeetings((prev) => [newMeeting, ...prev]);
-        setProcessing(false);
-        setShowSubmitModal(false);
-        navigate("/ai-results");
-      }, 700);
-      return;
-    }
-
     try {
       const response = await meetingService.createMeeting({
         title: form.title,
-        date: form.date || undefined,
-        eventId: form.eventId,
+        date: form.date || new Date().toISOString(),
+        eventId: form.eventId || eventId,
         transcript: form.transcript,
       });
 
@@ -164,16 +99,20 @@ David: I will coordinate the AV team and run sound checks.`,
       const meetingId = data?._id || data?.id;
 
       if (meetingId) {
-        const processResponse = await meetingService.processMeeting(meetingId);
-        const processed = processResponse?.data || processResponse;
-        safeStorage.setItem("aiResult", JSON.stringify(processed));
+        try {
+          const processResponse = await meetingService.processMeeting(meetingId);
+          const processed = processResponse?.data || processResponse;
+          safeStorage.setItem("aiResult", JSON.stringify(processed));
+        } catch (processErr) {
+          console.warn("AI processing error:", processErr);
+        }
       }
 
       setMeetings((prev) => [data, ...prev]);
       setShowSubmitModal(false);
       navigate("/ai-results");
     } catch (err) {
-      setFormError(err.response?.data?.message || "Meeting analysis failed.");
+      setFormError(err.response?.data?.message || err.message || "Failed to create meeting.");
     } finally {
       setProcessing(false);
     }

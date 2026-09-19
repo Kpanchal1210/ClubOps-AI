@@ -14,8 +14,6 @@ import {
 import authService from "../services/authService";
 import { useAuth } from "../context/AuthContext";
 
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -40,19 +38,6 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
-    // Dev mode auto-login
-    if (DEV_MODE) {
-      setTimeout(() => {
-        login("dev-mock-token", {
-          name: form.email.split("@")[0] || "Rahul Patel",
-          email: form.email || "rahul@clubops.org",
-          role: "organizer",
-        });
-        navigate("/dashboard");
-      }, 450);
-      return;
-    }
 
     try {
       const result = await authService.login(form);
@@ -85,9 +70,7 @@ export default function Login() {
 
         <h1>Sign in to your workspace</h1>
         <p className="auth-subtitle">
-          {DEV_MODE
-            ? "Development Mode: Any email and password will authenticate."
-            : "Enter your credentials to access your club operations."}
+          Enter your credentials to access your club operations.
         </p>
 
         {error && (

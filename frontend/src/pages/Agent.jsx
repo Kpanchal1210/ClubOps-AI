@@ -18,15 +18,12 @@ import {
 } from "lucide-react";
 
 import agentService from "../services/agentService";
-import { mockAgentActions } from "../mockData";
 import { safeStorage } from "../utils/storage";
 import Loading from "../components/Loading";
 
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
 export default function Agent() {
   const [command, setCommand] = useState("");
-  const [eventId] = useState(() => safeStorage.getItem("eventId", "mock-event-1"));
+  const [eventId] = useState(() => safeStorage.getItem("eventId"));
 
   // Chat conversation state
   const [messages, setMessages] = useState([
@@ -41,8 +38,8 @@ export default function Agent() {
   // Pending confirmation proposal
   const [pendingProposal, setPendingProposal] = useState(null);
 
-  // History & execution state — populated with mock actions immediately
-  const [actions, setActions] = useState(mockAgentActions);
+  // History & execution state
+  const [actions, setActions] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("chat"); // chat | history
@@ -56,16 +53,20 @@ export default function Agent() {
 
   /* ── Load Action History ─────────────────── */
   useEffect(() => {
-    if (DEV_MODE) {
-      setActions(mockAgentActions);
+    if (!eventId) {
       setHistoryLoading(false);
       return;
     }
-
+    setHistoryLoading(true);
     agentService
       .getActions(eventId)
-      .then((res) => setActions(res?.data || res || []))
-      .catch(() => setActions(mockAgentActions))
+      .then((res) => {
+        const list = res?.data || res || [];
+        setActions(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => {
+        console.warn("Failed to load agent actions:", err);
+      })
       .finally(() => setHistoryLoading(false));
   }, [eventId]);
 
@@ -146,43 +147,6 @@ export default function Agent() {
   const handleConfirmProposal = async (proposal) => {
     setIsProcessing(true);
 
-    if (DEV_MODE) {
-      setTimeout(() => {
-        const newAction = {
-          _id: `act-${Date.now()}`,
-          userId: "user-1",
-          eventId,
-          command: proposal.originalCommand,
-          intent: proposal.type === "risk" ? "CREATE_RISK" : "CREATE_TASK",
-          tool: proposal.type === "risk" ? "createRisk" : "createTask",
-          parameters: {
-            title: proposal.title,
-            priority: proposal.priority,
-            assignee: proposal.assignee,
-            deadline: proposal.deadline,
-          },
-          status: "completed",
-          result: { success: true, id: `res-${Date.now()}` },
-          createdAt: new Date().toISOString(),
-        };
-
-        setActions((prev) => [newAction, ...prev]);
-        setPendingProposal(null);
-        setIsProcessing(false);
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `asst-${Date.now()}`,
-            sender: "assistant",
-            text: `✓ Confirmed! Successfully created ${proposal.type}: "${proposal.title}". It is now synced to the active event workspace.`,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          },
-        ]);
-      }, 500);
-      return;
-    }
-
     try {
       const res = await agentService.sendCommand(proposal.originalCommand, eventId);
       const action = res?.data || res;
@@ -203,7 +167,7 @@ export default function Agent() {
         {
           id: `asst-${Date.now()}`,
           sender: "assistant",
-          text: `Error executing command: ${err.message || "Failed to reach agent service."}`,
+          text: `Error executing command: ${err.response?.data?.message || err.message || "Failed to reach agent service."}`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);

@@ -1,6 +1,12 @@
 import api from "./api";
 
 const clubService = {
+  // GET /api/clubs/my-club — Retrieve logged-in user's club
+  getMyClub: async () => {
+    const response = await api.get("/clubs/my-club");
+    return response.data;
+  },
+
   // POST /api/clubs — Create club organization
   createClub: async (data) => {
     const response = await api.post("/clubs", data);

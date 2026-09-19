@@ -12,30 +12,28 @@ import {
 } from "lucide-react";
 
 import notificationService from "../services/notificationService";
-import { mockNotifications } from "../mockData";
 
 import NotificationItem from "../components/NotificationItem";
 import Loading from "../components/Loading";
 
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
 export default function Notifications() {
-  const [notifications, setNotifications] = useState(mockNotifications);
-  const [loading, setLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("all"); // all | unread | tasks | risks | announcements
 
   /* ── Load Notifications ─────────────────── */
   useEffect(() => {
-    if (DEV_MODE) {
-      setNotifications(mockNotifications);
-      setLoading(false);
-      return;
-    }
-
+    setLoading(true);
     notificationService
       .getNotifications()
-      .then((res) => setNotifications(res?.data || res || mockNotifications))
-      .catch(() => setNotifications(mockNotifications))
+      .then((res) => {
+        const data = res?.data || res;
+        setNotifications(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch notifications:", err);
+        setNotifications([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -45,20 +43,16 @@ export default function Notifications() {
       prev.map((n) => ((n._id || n.id) === id ? { ...n, read: true } : n))
     );
 
-    if (DEV_MODE) return;
-
     try {
       await notificationService.markAsRead(id);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to mark notification as read:", err);
     }
   };
 
   /* ── Mark All Read ──────────────────────── */
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-
-    if (DEV_MODE) return;
 
     notifications
       .filter((n) => !n.read)

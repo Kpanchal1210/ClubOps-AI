@@ -4,6 +4,7 @@ const {
     createDocument,
     getDocumentById,
     getClubDocuments,
+    getEventDocuments,
     processDocument,
     deleteDocument
 } = require("../controllers/documentController");
@@ -15,6 +16,8 @@ const router = express.Router();
 router.post("/", protect, createDocument);
 
 router.get("/club/:clubId", protect, getClubDocuments);
+
+router.get("/event/:eventId", protect, getEventDocuments);
 
 router.get("/:id", protect, getDocumentById);
 

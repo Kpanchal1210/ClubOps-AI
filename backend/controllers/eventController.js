@@ -1,5 +1,6 @@
 const Event = require("../models/Event");
 const Club = require("../models/Club");
+const User = require("../models/User");
 
 // ======================================================
 // CREATE EVENT
@@ -7,7 +8,7 @@ const Club = require("../models/Club");
 // ======================================================
 const createEvent = async (req, res) => {
     try {
-        const {
+        let {
             clubId,
             name,
             description,
@@ -17,6 +18,18 @@ const createEvent = async (req, res) => {
             expectedParticipants,
             expectedVolunteers
         } = req.body;
+
+        if (!clubId) {
+            const user = await User.findById(req.user.userId);
+            if (user?.clubId) {
+                clubId = user.clubId;
+            } else {
+                const club = await Club.findOne({
+                    $or: [{ adminId: req.user.userId }, { members: req.user.userId }]
+                });
+                if (club) clubId = club._id;
+            }
+        }
 
         if (!clubId || !name || !startDate || !endDate) {
             return res.status(400).json({
@@ -382,10 +395,60 @@ const deleteEvent = async (req, res) => {
 };
 
 
+// ======================================================
+// GET MY CLUB'S EVENTS
+// GET /api/events
+// ======================================================
+const getMyEvents = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        let clubId = user.clubId;
+        if (!clubId) {
+            const club = await Club.findOne({
+                $or: [{ adminId: req.user.userId }, { members: req.user.userId }]
+            });
+            if (club) clubId = club._id;
+        }
+
+        if (!clubId) {
+            return res.status(200).json({
+                success: true,
+                message: "No club associated with user",
+                data: { events: [] }
+            });
+        }
+
+        const events = await Event.find({ clubId })
+            .populate("createdBy", "name email role")
+            .sort({ startDate: 1 });
+
+        return res.status(200).json({
+            success: true,
+            message: "Events fetched successfully",
+            data: { events }
+        });
+    } catch (error) {
+        console.error("Get my events error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error while fetching events"
+        });
+    }
+};
+
+
 module.exports = {
     createEvent,
     getClubEvents,
     getEventById,
     updateEvent,
-    deleteEvent
+    deleteEvent,
+    getMyEvents
 };

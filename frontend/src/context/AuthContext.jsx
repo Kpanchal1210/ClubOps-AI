@@ -2,42 +2,38 @@ import {
   createContext,
   useContext,
   useState,
+  useEffect,
 } from "react";
 import { safeStorage } from "../utils/storage";
-
-const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
-const DEFAULT_DEV_USER = {
-  id: "user-1",
-  name: "Karan Panchal",
-  email: "karan@clubops.org",
-  role: "organizer",
-};
+import clubService from "../services/clubService";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => {
-    const saved = safeStorage.getItem("token");
-    if (saved) return saved;
-    // In dev mode, auto-provide mock token so cold runs never get stuck on empty/redirect loops
-    if (DEV_MODE) {
-      safeStorage.setItem("token", "dev-mock-token");
-      return "dev-mock-token";
-    }
-    return null;
-  });
+  const [token, setToken] = useState(() => safeStorage.getItem("token"));
+  const [user, setUser] = useState(() => safeStorage.getJSON("user"));
+  const [club, setClub] = useState(() => safeStorage.getJSON("club"));
 
-  const [user, setUser] = useState(() => {
-    const savedUser = safeStorage.getJSON("user");
-    if (savedUser) return savedUser;
-    // In dev mode, auto-provide mock user
-    if (DEV_MODE) {
-      safeStorage.setItem("user", DEFAULT_DEV_USER);
-      return DEFAULT_DEV_USER;
+  const refreshClub = async () => {
+    try {
+      const res = await clubService.getMyClub();
+      const clubData = res?.data?.club || res?.data || res;
+      if (clubData) {
+        setClub(clubData);
+        safeStorage.setItem("club", clubData);
+      }
+    } catch {
+      // User might not belong to a club yet
     }
-    return null;
-  });
+  };
+
+  useEffect(() => {
+    if (token) {
+      refreshClub();
+    } else {
+      setClub(null);
+    }
+  }, [token]);
 
   const login = (newToken, userData) => {
     safeStorage.setItem("token", newToken);
@@ -53,11 +49,13 @@ export function AuthProvider({ children }) {
   const logout = () => {
     safeStorage.removeItem("token");
     safeStorage.removeItem("user");
+    safeStorage.removeItem("club");
     safeStorage.removeItem("eventId");
     safeStorage.removeItem("aiResult");
 
     setToken(null);
     setUser(null);
+    setClub(null);
   };
 
   return (
@@ -65,6 +63,8 @@ export function AuthProvider({ children }) {
       value={{
         token,
         user,
+        club,
+        refreshClub,
         login,
         logout,
         isAuthenticated: Boolean(token),
