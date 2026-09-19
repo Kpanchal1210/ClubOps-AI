@@ -4,6 +4,8 @@ const dotenv = require("dotenv");
 
 const connectDB = require("./config/db");
 
+const authRoutes = require("./routes/authRoutes");
+
 dotenv.config();
 
 const app = express();
@@ -12,10 +14,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB
+// Database
 connectDB();
 
-// Test route
+// Routes
+app.use("/api/auth", authRoutes);
+
+// Health check
 app.get("/", (req, res) => {
     res.json({
         success: true,
