@@ -1,0 +1,158 @@
+/* ============================================================
+   CLUBOPS SAAS DESIGN SYSTEM TOKENS & BASE STYLES
+   Dark Technical SaaS Aesthetic (Linear / Vercel / CodeBite)
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Typography */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Space Grotesk", "Plus Jakarta Sans", var(--font-sans);
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Color Palette - Premium Dark Editorial & Brutalist */
+  --bg-canvas: #080808;
+  --bg-surface: #0f0f0f;
+  --bg-surface-hover: #161616;
+  --bg-subtle: #1a1a1a;
+  --bg-panel-light: #f5f2eb;
+  --text-panel-dark: #0a0a0a;
+
+  /* Borders */
+  --border-subtle: #1c1c1c;
+  --border-default: #262626;
+  --border-hover: #3d3d3d;
+  --border-focus: #ff2948;
+  --border-bold: rgba(255, 255, 255, 0.25);
+
+  /* Text colors */
+  --text-primary: #f5f2eb;
+  --text-secondary: #999999;
+  --text-muted: #666666;
+  --text-inverse: #080808;
+
+  /* Brand Accent - Signature Hot Red */
+  --color-primary: #ff2948;
+  --color-primary-hover: #e01e3c;
+  --color-primary-active: #c7102c;
+  --color-primary-light: rgba(255, 41, 72, 0.12);
+  --color-primary-border: rgba(255, 41, 72, 0.35);
+
+  /* Semantic */
+  --color-success: #10b981;
+  --color-success-hover: #059669;
+  --color-success-bg: rgba(16, 185, 129, 0.12);
+  --color-success-text: #34d399;
+  --color-success-border: rgba(16, 185, 129, 0.25);
+
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-warning-text: #fbbf24;
+  --color-warning-border: rgba(245, 158, 11, 0.25);
+
+  --color-danger: #ff2948;
+  --color-danger-hover: #e01e3c;
+  --color-danger-bg: rgba(255, 41, 72, 0.14);
+  --color-danger-text: #ff8093;
+  --color-danger-border: rgba(255, 41, 72, 0.35);
+
+  --color-ai: #ff2948;
+  --color-ai-hover: #e01e3c;
+  --color-ai-bg: rgba(255, 41, 72, 0.08);
+  --color-ai-text: #ff8093;
+  --color-ai-border: rgba(255, 41, 72, 0.3);
+
+  /* Brutalist Offset Shadows */
+  --shadow-brutal-red: 8px 8px 0px #ff2948;
+  --shadow-brutal-white: 6px 6px 0px #ffffff;
+  --shadow-brutal-dark: 6px 6px 0px #080808;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6);
+
+  /* Sharp Rectangular Radii */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-full: 0px;
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-normal: 180ms ease;
+
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  line-height: 1.5;
+  font-family: var(--font-sans);
+}
+
+/* Form element resets */
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  font-family: var(--font-sans);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Accessibility focus ring */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Modern clean dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #232733;
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #333a4d;
+}
