@@ -1,9 +1,10 @@
-const Document = require("../models/Document");
-const Club = require("../models/Club");
+const axios = require("axios");
 
+const Club = require("../models/Club");
 
 // --------------------------------------------------
 // POST /api/rag/query
+// Backend → RAG Service
 // --------------------------------------------------
 
 const ragQuery = async (req, res) => {
@@ -11,8 +12,13 @@ const ragQuery = async (req, res) => {
         const {
             query,
             clubId,
-            eventId
+            eventId,
+            documentId
         } = req.body;
+
+        // --------------------------------------------------
+        // Validate query
+        // --------------------------------------------------
 
         if (!query || !query.trim()) {
             return res.status(400).json({
@@ -21,12 +27,20 @@ const ragQuery = async (req, res) => {
             });
         }
 
+        // --------------------------------------------------
+        // Validate clubId
+        // --------------------------------------------------
+
         if (!clubId) {
             return res.status(400).json({
                 success: false,
                 message: "clubId is required"
             });
         }
+
+        // --------------------------------------------------
+        // Check club
+        // --------------------------------------------------
 
         const club = await Club.findById(clubId);
 
@@ -36,6 +50,10 @@ const ragQuery = async (req, res) => {
                 message: "Club not found"
             });
         }
+
+        // --------------------------------------------------
+        // Check membership
+        // --------------------------------------------------
 
         const isMember = club.members.some(
             memberId =>
@@ -49,26 +67,55 @@ const ragQuery = async (req, res) => {
             });
         }
 
+        // --------------------------------------------------
+        // Call RAG Service
+        // --------------------------------------------------
+
+        console.log("Sending query to RAG service...");
+
+        const ragResponse = await axios.post(
+            `${process.env.RAG_SERVICE_URL}/api/rag/ask`,
+            {
+                question: query.trim(),
+                documentId: documentId || null
+            }
+        );
 
         // --------------------------------------------------
-        // IMPORTANT:
-        // Actual RAG retrieval + Gemini answer will be
-        // implemented by the RAG teammate.
+        // Return RAG response
         // --------------------------------------------------
 
         return res.json({
             success: true,
-            message: "RAG query received",
             data: {
                 query: query.trim(),
                 clubId,
                 eventId: eventId || null,
-                status: "ready_for_rag_processing"
+                documentId: documentId || null,
+                answer: ragResponse.data.answer,
+                sources: ragResponse.data.sources || []
             }
         });
 
     } catch (error) {
-        console.error("RAG query error:", error);
+        console.error("RAG query error:", error.message);
+
+        // RAG service error
+        if (error.response) {
+            return res.status(502).json({
+                success: false,
+                message: "RAG service failed",
+                error: error.response.data?.message || error.message
+            });
+        }
+
+        // RAG service unavailable
+        if (error.code === "ECONNREFUSED") {
+            return res.status(503).json({
+                success: false,
+                message: "RAG service is unavailable"
+            });
+        }
 
         return res.status(500).json({
             success: false,
@@ -77,7 +124,6 @@ const ragQuery = async (req, res) => {
         });
     }
 };
-
 
 module.exports = {
     ragQuery
