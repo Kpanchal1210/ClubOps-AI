@@ -1,8 +1,52 @@
 const axios = require("axios");
+const { spawn } = require("child_process");
+const path = require("path");
 
 const API_BASE = process.env.API_URL || "http://localhost:5002/api";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function checkHealth() {
+  try {
+    const res = await axios.get(`${API_BASE}/health`, { timeout: 1500 });
+    return res.status === 200;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureBackendIsRunning() {
+  console.log("1. Checking Backend Server Health...");
+  const isUp = await checkHealth();
+  if (isUp) {
+    console.log("   ✓ Backend server is already running on port 5002.\n");
+    return;
+  }
+
+  console.log("   Backend server is not running. Starting it automatically in background...");
+  const serverScript = path.resolve(__dirname, "../server.js");
+  const serverProc = spawn(process.execPath, [serverScript], {
+    cwd: path.resolve(__dirname, ".."),
+    stdio: "ignore",
+    detached: true,
+  });
+  serverProc.unref();
+
+  // Wait up to 15 seconds for server to come up
+  for (let i = 0; i < 30; i++) {
+    await sleep(500);
+    if (await checkHealth()) {
+      console.log("   ✓ Backend server started successfully on port 5002!\n");
+      return;
+    }
+  }
+
+  console.error("\n❌ Could not connect to backend server at " + API_BASE);
+  console.error("   Please start it manually in another terminal:");
+  console.error("   $ cd backend");
+  console.error("   $ npm run dev\n");
+  process.exit(1);
+}
 
 async function runAutoDemo() {
   console.log("==========================================================");
@@ -14,21 +58,14 @@ async function runAutoDemo() {
   let user = null;
   let eventId = null;
 
+  // Ensure server is up before proceeding
+  await ensureBackendIsRunning();
+
   const client = axios.create({
     baseURL: API_BASE,
     headers: { "Content-Type": "application/json" },
-    validateStatus: () => true, // Don't throw on HTTP errors so we can handle gracefully
+    validateStatus: () => true,
   });
-
-  // 1. Health Check
-  console.log("1. Checking Backend Server Health...");
-  const healthRes = await client.get("/health");
-  if (healthRes.status !== 200) {
-    console.error(`❌ Backend is not reachable at ${API_BASE}. Status: ${healthRes.status}`);
-    console.error("   Please ensure the backend is running: `cd backend && npm run dev`\n");
-    process.exit(1);
-  }
-  console.log(`   ✓ Backend is healthy! (status: ${healthRes.status}, message: ${healthRes.data?.message || "OK"})\n`);
 
   // 2. Authentication: Login or Register
   console.log("2. Authenticating User...");
