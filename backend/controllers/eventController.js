@@ -24,10 +24,19 @@ const createEvent = async (req, res) => {
             if (user?.clubId) {
                 clubId = user.clubId;
             } else {
-                const club = await Club.findOne({
+                let club = await Club.findOne({
                     $or: [{ adminId: req.user.userId }, { members: req.user.userId }]
                 });
-                if (club) clubId = club._id;
+                if (!club) {
+                    club = await Club.create({
+                        name: user?.name ? `${user.name}'s Club` : "Campus Tech Club",
+                        description: "Student Operations & Event Management Club",
+                        adminId: req.user.userId,
+                        members: [req.user.userId]
+                    });
+                    await User.findByIdAndUpdate(req.user.userId, { clubId: club._id });
+                }
+                clubId = club._id;
             }
         }
 

@@ -112,6 +112,22 @@ async function runAutoDemo() {
 
   console.log(`   ✓ JWT Token acquired: ${token.slice(0, 16)}...\n`);
 
+  // Ensure user has a club
+  let clubId = user.clubId;
+  if (!clubId) {
+    const myClubRes = await authClient.get("/clubs/my-club");
+    if (myClubRes.status === 200 && myClubRes.data?.data?.club?._id) {
+      clubId = myClubRes.data.data.club._id;
+    } else {
+      const createClubRes = await authClient.post("/clubs", {
+        name: "Tech & Innovation Society",
+        description: "Student Innovation, Artificial Intelligence & Robotics Society",
+      });
+      const newClub = createClubRes.data?.data?.club || createClubRes.data?.data;
+      clubId = newClub?._id || newClub?.id;
+    }
+  }
+
   // 3. Create a Live Event
   console.log("3. Creating a New Event via POST /api/events...");
   const eventName = `Autonomous AI & Robotics Expo ${new Date().getFullYear()}`;
@@ -120,6 +136,7 @@ async function runAutoDemo() {
   const endDate = new Date(startDate.getTime() + 2 * 24 * 60 * 60 * 1000);
 
   const eventRes = await authClient.post("/events", {
+    clubId,
     name: eventName,
     description: "48-hour student symposium with hands-on AI agent competitions, robotics demos, and venture pitches.",
     venue: "Main Campus Auditorium & Engineering Quad",
