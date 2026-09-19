@@ -1,6 +1,30 @@
 const Task = require("../../../models/Task");
 const Event = require("../../../models/Event");
 const Club = require("../../../models/Club");
+const User = require("../../../models/User");
+
+
+const resolveAssignee = async (assigneeName) => {
+
+    if (!assigneeName) {
+        return undefined;
+    }
+
+    const user = await User.findOne({
+        name: {
+            $regex: assigneeName,
+            $options: "i"
+        }
+    });
+
+    if (!user) {
+        throw new Error(
+            `User "${assigneeName}" not found`
+        );
+    }
+
+    return user._id;
+};
 
 
 const convertDeadline = (deadline) => {
@@ -61,6 +85,7 @@ const createTaskTool = async ({
     userId,
     title,
     description,
+    assigneeName,
     assignedTo,
     priority,
     deadline
@@ -116,6 +141,8 @@ const createTaskTool = async ({
 
     const convertedDeadline = convertDeadline(deadline);
 
+    const resolvedAssignee = assignedTo ||
+        await resolveAssignee(assigneeName);
 
     // 6. Create task
 
