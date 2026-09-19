@@ -3,7 +3,11 @@ const jwt = require("jsonwebtoken");
 
 const User = require("../models/User");
 
+
+// --------------------------------------------------
 // Generate JWT
+// --------------------------------------------------
+
 const generateToken = (user) => {
     return jwt.sign(
         {
@@ -17,22 +21,23 @@ const generateToken = (user) => {
     );
 };
 
-// =========================
-// REGISTER
-// =========================
+
+// --------------------------------------------------
+// Register
+// POST /api/auth/register
+// --------------------------------------------------
+
 const register = async (req, res) => {
     try {
         const {
             name,
             email,
             password,
-            role,
-            clubId,
-            skills,
-            availability
+            clubId
         } = req.body;
 
-        // Check required fields
+
+        // Basic validation
         if (!name || !email || !password) {
             return res.status(400).json({
                 success: false,
@@ -40,8 +45,20 @@ const register = async (req, res) => {
             });
         }
 
-        // Check if user already exists
-        const existingUser = await User.findOne({ email });
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: "Password must be at least 6 characters"
+            });
+        }
+
+
+        // Check existing user
+        const existingUser = await User.findOne({
+            email: email.toLowerCase().trim()
+        });
+
 
         if (existingUser) {
             return res.status(409).json({
@@ -50,59 +67,80 @@ const register = async (req, res) => {
             });
         }
 
-        // Hash password
-        const passwordHash = await bcrypt.hash(password, 10);
 
-        // Create user
+        // Hash password
+        const passwordHash = await bcrypt.hash(
+            password,
+            10
+        );
+
+
+        // IMPORTANT:
+        // Every newly registered user is a MEMBER.
+        // Client cannot create admin/organizer accounts.
         const user = await User.create({
-            name,
-            email,
+            name: name.trim(),
+
+            email: email
+                .toLowerCase()
+                .trim(),
+
             passwordHash,
-            role: role || "member",
-            clubId,
-            skills: skills || [],
-            availability: availability || "available"
+
+            role: "member",
+
+            clubId: clubId || undefined
         });
 
-        // Generate JWT
+
         const token = generateToken(user);
+
 
         return res.status(201).json({
             success: true,
-            message: "User registered successfully",
+            message: "Registration successful",
+
             data: {
                 user: {
                     id: user._id,
                     name: user.name,
                     email: user.email,
                     role: user.role,
-                    clubId: user.clubId,
-                    skills: user.skills,
-                    availability: user.availability
+                    clubId: user.clubId
                 },
+
                 token
             }
         });
 
     } catch (error) {
-        console.error("Register error:", error);
+
+        console.error(
+            "Register error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: "Server error during registration",
-            error: {
-                code: "REGISTER_ERROR"
-            }
+            message: "Registration failed",
+            error: error.message
         });
     }
 };
 
-// =========================
-// LOGIN
-// =========================
+
+// --------------------------------------------------
+// Login
+// POST /api/auth/login
+// --------------------------------------------------
+
 const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const {
+            email,
+            password
+        } = req.body;
+
 
         if (!email || !password) {
             return res.status(400).json({
@@ -111,11 +149,13 @@ const login = async (req, res) => {
             });
         }
 
-        // Explicitly select passwordHash because
-        // User model has select: false
-        const user = await User
-            .findOne({ email })
-            .select("+passwordHash");
+
+        // passwordHash has select:false,
+        // so explicitly select it here.
+        const user = await User.findOne({
+            email: email.toLowerCase().trim()
+        }).select("+passwordHash");
+
 
         if (!user) {
             return res.status(401).json({
@@ -124,58 +164,74 @@ const login = async (req, res) => {
             });
         }
 
-        // Compare password
-        const isPasswordCorrect = await bcrypt.compare(
-            password,
-            user.passwordHash
-        );
 
-        if (!isPasswordCorrect) {
+        const passwordMatch =
+            await bcrypt.compare(
+                password,
+                user.passwordHash
+            );
+
+
+        if (!passwordMatch) {
             return res.status(401).json({
                 success: false,
                 message: "Invalid email or password"
             });
         }
 
-        // Generate JWT
+
         const token = generateToken(user);
 
-        return res.status(200).json({
+
+        return res.json({
             success: true,
             message: "Login successful",
+
             data: {
                 user: {
                     id: user._id,
                     name: user.name,
                     email: user.email,
                     role: user.role,
-                    clubId: user.clubId,
-                    skills: user.skills,
-                    availability: user.availability
+                    clubId: user.clubId
                 },
+
                 token
             }
         });
 
     } catch (error) {
-        console.error("Login error:", error);
+
+        console.error(
+            "Login error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: "Server error during login",
-            error: {
-                code: "LOGIN_ERROR"
-            }
+            message: "Login failed",
+            error: error.message
         });
     }
 };
 
-// =========================
-// GET CURRENT USER
-// =========================
+
+// --------------------------------------------------
+// Get current user
+// GET /api/auth/me
+// --------------------------------------------------
+
 const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user.userId);
+
+        const user = await User.findById(
+            req.user.userId
+        )
+            .populate(
+                "clubId",
+                "name description adminId"
+            );
+
 
         if (!user) {
             return res.status(404).json({
@@ -184,34 +240,29 @@ const getMe = async (req, res) => {
             });
         }
 
-        return res.status(200).json({
+
+        return res.json({
             success: true,
-            message: "User fetched successfully",
             data: {
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                    role: user.role,
-                    clubId: user.clubId,
-                    skills: user.skills,
-                    availability: user.availability
-                }
+                user
             }
         });
 
     } catch (error) {
-        console.error("Get user error:", error);
+
+        console.error(
+            "Get current user error:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: "Server error",
-            error: {
-                code: "GET_USER_ERROR"
-            }
+            message: "Failed to get user",
+            error: error.message
         });
     }
 };
+
 
 module.exports = {
     register,
