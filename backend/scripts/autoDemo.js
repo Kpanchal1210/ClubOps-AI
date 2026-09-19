@@ -81,11 +81,11 @@ async function runAutoDemo() {
     user = loginRes.data.data.user;
     console.log(`   ✓ Logged in as: ${user.name} (${user.email}) [Role: ${user.role}]`);
   } else {
-    // If not seeded, register a new account
-    console.log("   Pre-seeded account not found. Registering a new test organizer...");
+    // If not seeded, register the fixed organizer account
+    console.log("   Pre-seeded account not found. Creating organizer@clubops.org...");
     const regRes = await client.post("/auth/register", {
-      name: "Demo Organizer",
-      email: `organizer_${Date.now().toString().slice(-4)}@clubops.org`,
+      name: "Krish Patel",
+      email: "organizer@clubops.org",
       password: "password123",
       role: "organizer",
     });
@@ -93,12 +93,20 @@ async function runAutoDemo() {
     if (regRes.status === 201 && regRes.data?.data?.token) {
       token = regRes.data.data.token;
       user = regRes.data.data.user;
-      console.log(`   ✓ Registered new user: ${user.name} (${user.email})`);
+      console.log(`   ✓ Registered and logged in: ${user.name} (${user.email})`);
     } else {
       console.error("❌ Authentication failed:", regRes.data);
       process.exit(1);
     }
   }
+
+  // Also ensure rahul@clubops.org exists for the demo button on the login page
+  await client.post("/auth/register", {
+    name: "Rahul Patel",
+    email: "rahul@clubops.org",
+    password: "password123",
+    role: "organizer",
+  });
 
   // Attach token for authenticated requests
   const authClient = axios.create({

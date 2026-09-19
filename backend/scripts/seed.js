@@ -56,6 +56,15 @@ async function seed() {
       availability: "available",
     });
 
+    const rahulUser = await User.create({
+      name: "Rahul Patel",
+      email: "rahul@clubops.org",
+      passwordHash,
+      role: "organizer",
+      skills: ["Operations Lead", "Hackathon Logistics"],
+      availability: "available",
+    });
+
     const volunteer1 = await User.create({
       name: "Maya Lin",
       email: "maya@clubops.org",
@@ -90,7 +99,7 @@ async function seed() {
       name: "Tech & Innovation Society",
       description: "Premier university club driving hands-on technology workshops, hackathons, and symposiums.",
       adminId: adminUser._id,
-      members: [adminUser._id, organizerUser._id, volunteer1._id, volunteer2._id, volunteer3._id],
+      members: [adminUser._id, organizerUser._id, rahulUser._id, volunteer1._id, volunteer2._id, volunteer3._id],
     });
 
     // Update users with clubId
