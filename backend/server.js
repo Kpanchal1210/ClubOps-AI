@@ -29,12 +29,16 @@ app.use(express.json());
 // Health Check
 // --------------------------------------------------
 
-app.get("/", (req, res) => {
+const sendHealth = (req, res) => {
     res.json({
         success: true,
         message: "ClubOps API is running"
     });
-});
+};
+
+app.get("/", sendHealth);
+app.get("/health", sendHealth);
+app.get("/api/health", sendHealth);
 
 
 // --------------------------------------------------
@@ -97,11 +101,8 @@ const {
 } = require("./middleware/authMiddleware");
 
 
-app.get(
-    "/api/events/:eventId/dashboard",
-    protect,
-    getEventDashboard
-);
+app.get("/api/events/:eventId/dashboard", protect, getEventDashboard);
+app.get("/api/dashboard/:eventId", protect, getEventDashboard);
 
 
 // --------------------------------------------------

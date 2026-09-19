@@ -130,7 +130,7 @@ async function runAutoDemo() {
   });
 
   if (eventRes.status === 201 || eventRes.status === 200) {
-    const eventData = eventRes.data?.data || eventRes.data;
+    const eventData = eventRes.data?.data?.event || eventRes.data?.data || eventRes.data;
     eventId = eventData._id || eventData.id;
     console.log(`   ✓ Event created: "${eventName}" (ID: ${eventId})`);
     console.log(`     Venue: ${eventData.venue} | Expected Attendees: ${eventData.expectedParticipants}`);
@@ -169,7 +169,7 @@ async function runAutoDemo() {
   for (const t of tasksToAdd) {
     const taskRes = await authClient.post("/tasks", { eventId, ...t });
     if (taskRes.status === 201 || taskRes.status === 200) {
-      const taskData = taskRes.data?.data || taskRes.data;
+      const taskData = taskRes.data?.data?.task || taskRes.data?.data || taskRes.data;
       console.log(`   ✓ Task added [${t.priority.toUpperCase()}]: "${t.title}" (ID: ${taskData._id || taskData.id})`);
     } else {
       console.warn(`   ⚠️ Could not add task "${t.title}":`, taskRes.data?.message);
@@ -199,7 +199,7 @@ async function runAutoDemo() {
   for (const r of risksToAdd) {
     const riskRes = await authClient.post("/risks", { eventId, ...r });
     if (riskRes.status === 201 || riskRes.status === 200) {
-      const riskData = riskRes.data?.data || riskRes.data;
+      const riskData = riskRes.data?.data?.risk || riskRes.data?.data || riskRes.data;
       console.log(`   ✓ Risk reported [${r.severity.toUpperCase()}]: "${r.title}" (ID: ${riskData._id || riskData.id})`);
     } else {
       console.warn(`   ⚠️ Could not add risk "${r.title}":`, riskRes.data?.message);
@@ -276,8 +276,7 @@ Organizer: Great. Let's make sure the campus Wi-Fi repeaters are active before a
   console.log();
 
   // 9. Verify Live Dashboard Metrics
-  console.log("9. Verifying Dashboard API via GET /api/dashboard/:eventId...");
-  const dashRes = await authClient.get(`/dashboard/${eventId}`);
+  const dashRes = await authClient.get(`/events/${eventId}/dashboard`);
   if (dashRes.status === 200) {
     const dash = dashRes.data?.data || dashRes.data;
     console.log("   ✓ Live Dashboard Data Retrieved Successfully:");
