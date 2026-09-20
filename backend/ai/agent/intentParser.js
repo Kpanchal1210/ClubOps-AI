@@ -14,6 +14,22 @@ function getGenAI() {
 function fallbackParseIntent(command) {
     const lower = command.toLowerCase().trim();
 
+    // 0. Greeting / conversational
+    if (
+        /^(hi|hello|hey|greetings|good\s+(morning|afternoon|evening)|howdy|sup|yo)\b/i.test(lower) ||
+        lower === "hi" ||
+        lower === "hello" ||
+        lower === "hey" ||
+        lower === "help" ||
+        lower.startsWith("who are you") ||
+        lower.startsWith("what can you do")
+    ) {
+        return {
+            intent: "GREETING",
+            parameters: { query: command }
+        };
+    }
+
     // 1. Question / status check
     if (
         lower.startsWith("who") ||
@@ -129,6 +145,7 @@ UPDATE_TASK
 CREATE_RISK
 SEND_NOTIFICATION
 QUERY_KNOWLEDGE
+GREETING
 UNKNOWN
 
 Use exactly this structure:
@@ -181,6 +198,12 @@ For QUERY_KNOWLEDGE, parameters may contain:
     "query": "the factual question, who-done-what query, status check, guidelines query, contract lookup, or document search topic"
 }
 
+For GREETING, parameters may contain:
+
+{
+    "query": "user greeting or conversational phrase"
+}
+
 Important rules:
 
 1. Do NOT invent MongoDB IDs.
@@ -198,8 +221,9 @@ Important rules:
 10. Risk probability must be one of:
    low, medium, high
 11. If the user is asking any question (e.g. who done/completed a task, who is assigned to a task, task status, volunteer availability, risks identified, meeting decisions, venue guidelines, rules, schedules, or documents), return QUERY_KNOWLEDGE.
-12. If the command does not match any supported intent, use UNKNOWN.
-13. Return valid JSON only.
+12. If the user says hello, hi, introduces themselves, greets you, or asks what you can do, return GREETING.
+13. If the command does not match any supported intent, use UNKNOWN.
+14. Return valid JSON only.
 
 User command:
 

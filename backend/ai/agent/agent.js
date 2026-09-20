@@ -22,22 +22,21 @@ const runAgent = async ({
 
 
         // 2. Find the tool
-        const tool = toolRegistry[intent];
+        let tool = toolRegistry[intent];
+        let effectiveIntent = intent;
 
         if (!tool) {
-            throw new Error(
-                `No tool available for intent: ${intent}`
-            );
+            tool = toolRegistry.UNKNOWN || toolRegistry.CONVERSATION;
+            effectiveIntent = "CONVERSATION";
         }
-
 
         // 3. Create AgentAction
         action = await AgentAction.create({
             userId,
             eventId,
             command,
-            intent,
-            tool: intent,
+            intent: effectiveIntent,
+            tool: effectiveIntent,
             parameters,
             status: "running"
         });
@@ -46,6 +45,7 @@ const runAgent = async ({
         // 4. Prepare tool parameters
         const toolParameters = {
             ...parameters,
+            command,
             userId,
             eventId
         };

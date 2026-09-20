@@ -22,6 +22,7 @@ import {
   Filter,
   Eye,
   Trash2,
+  Loader2,
 } from "lucide-react";
 
 import eventService from "../services/eventService";
@@ -658,31 +659,36 @@ export default function EventDetails() {
           </div>
 
           {/* Ask Documents (RAG) Query Box */}
-          <div
-            style={{
-              background: "var(--bg-surface)",
-              border: "1px solid var(--border-default)",
-              borderRadius: "var(--radius-lg)",
-              padding: "18px 20px",
-              marginBottom: 24,
-              boxShadow: "var(--shadow-xs)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, color: "var(--color-primary)", fontWeight: 600, fontSize: 13 }}>
+          <div className="rag-ask-card">
+            <div className="rag-ask-header">
               <Sparkles size={16} />
-              <span>Ask Documents (RAG Query)</span>
+              <span>Ask Documents (Grounded RAG Intelligence)</span>
             </div>
 
-            <form onSubmit={handleAskDocuments} style={{ display: "flex", gap: 10 }}>
-              <input
-                type="text"
-                placeholder="Ask anything about event contracts, venue safety rules, or schedule guidelines..."
-                value={ragQuery}
-                onChange={(e) => setRagQuery(e.target.value)}
-                style={{ flex: 1, margin: 0 }}
-              />
-              <button className="primary-button" disabled={ragLoading || !ragQuery.trim()}>
-                {ragLoading ? "Querying..." : "Search Docs"}
+            <form onSubmit={handleAskDocuments} className="rag-ask-form">
+              <div className="rag-input-wrapper">
+                <Search size={15} className="rag-input-icon" />
+                <input
+                  type="text"
+                  placeholder="Ask anything about event contracts, venue safety rules, or schedule guidelines..."
+                  value={ragQuery}
+                  onChange={(e) => setRagQuery(e.target.value)}
+                  className="rag-ask-input"
+                  disabled={ragLoading}
+                />
+              </div>
+              <button className="rag-search-button" disabled={ragLoading || !ragQuery.trim()}>
+                {ragLoading ? (
+                  <>
+                    <Loader2 size={14} style={{ animation: "spin 0.8s linear infinite" }} />
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <Search size={14} />
+                    <span>Search Docs</span>
+                  </>
+                )}
               </button>
             </form>
 

@@ -124,8 +124,19 @@ export default function Agent() {
 
     const lower = trimmed.toLowerCase();
 
-    // 1. Check if user is asking a question or querying event status / documents
+    // 1. Check if user is saying a greeting or conversational phrase
+    const isGreeting =
+      lower === "hi" ||
+      lower === "hello" ||
+      lower === "hey" ||
+      lower === "help" ||
+      /^(hi|hello|hey|greetings|good\s+(morning|afternoon|evening)|howdy|sup|yo)\b/i.test(lower) ||
+      lower.startsWith("who are you") ||
+      lower.startsWith("what can you do");
+
+    // 2. Check if user is asking a question or querying event status / documents
     const isQuestion =
+      isGreeting ||
       lower.startsWith("who") ||
       lower.startsWith("what") ||
       lower.startsWith("where") ||
@@ -625,45 +636,37 @@ export default function Agent() {
             </div>
 
             {/* Input Form */}
-            <form
-              onSubmit={handleSendCommand}
-              style={{
-                padding: "16px 20px",
-                borderTop: "1px solid var(--border-default)",
-                background: "var(--bg-surface)",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                placeholder='e.g. "Create a high priority task for Rahul to contact sponsors tomorrow"'
-                disabled={isProcessing}
-                style={{
-                  flex: 1,
-                  margin: 0,
-                  background: "var(--bg-canvas)",
-                  border: "1px solid var(--border-default)",
-                  color: "var(--text-primary)",
-                }}
-              />
+            <form onSubmit={handleSendCommand} className="agent-ask-container">
+              <div className="agent-input-wrapper">
+                <Sparkles size={16} className="agent-input-icon" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={command}
+                  onChange={(e) => setCommand(e.target.value)}
+                  placeholder='Ask a question, say "hi", or issue a command (e.g. "Create a task for Rahul to contact sponsors tomorrow")...'
+                  disabled={isProcessing}
+                  className="agent-ask-input"
+                />
+              </div>
               <button
                 type="submit"
-                className="primary-button"
+                className="agent-send-button"
                 disabled={isProcessing || !command.trim()}
-                style={{ padding: "9px 16px" }}
               >
-                <Send size={15} />
+                {isProcessing ? (
+                  <Loader2 size={15} style={{ animation: "spin 0.8s linear infinite" }} />
+                ) : (
+                  <Send size={15} />
+                )}
+                <span>Send</span>
               </button>
             </form>
           </div>
 
-          {/* Right Sidebar: Quick Prompts & Info */}
+          {/* Right Sidebar: Active Scope & Governance */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Active Scope Card */}
             <div
               style={{
                 padding: 20,
@@ -672,47 +675,56 @@ export default function Agent() {
                 borderRadius: "var(--radius-lg)",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <Sparkles size={16} style={{ color: "var(--color-ai)" }} />
-                <strong style={{ fontSize: 14 }}>Sample Voice & Text Commands</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+                <Bot size={17} style={{ color: "var(--color-primary)" }} />
+                <strong style={{ fontSize: 14 }}>Operational Context</strong>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {[
-                  "Create a high priority task for Rahul to contact sponsors tomorrow",
-                  "Mark the contact sponsors task as completed",
-                  "Flag a high severity risk — auditorium confirmation pending",
-                  "Send an announcement to all that final rehearsal starts in 1 hour",
-                  "According to our documents, what are the venue safety guidelines?",
-                  "Send notification to Maya that stage setup begins at 3pm",
-                  "Report a medium risk: insufficient volunteer drivers for logistics",
-                ].map((prompt, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setCommand(prompt);
-                      inputRef.current?.focus();
-                    }}
-                    style={{
-                      textAlign: "left",
-                      padding: "9px 12px",
-                      background: "var(--bg-subtle)",
-                      border: "1px solid var(--border-default)",
-                      borderRadius: "var(--radius-md)",
-                      fontSize: 12.5,
-                      lineHeight: 1.4,
-                      color: "var(--text-secondary)",
-                      cursor: "pointer",
-                      transition: "all var(--transition-fast)",
-                    }}
-                  >
-                    "{prompt}"
-                  </button>
-                ))}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 12.5 }}>
+                <div>
+                  <span style={{ color: "var(--text-muted)", display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>
+                    Active Event
+                  </span>
+                  <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                    {currentEvent?.name || "All Events Scope"}
+                  </span>
+                </div>
+
+                {currentEvent?.venue && (
+                  <div>
+                    <span style={{ color: "var(--text-muted)", display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase" }}>
+                      Venue
+                    </span>
+                    <span style={{ color: "var(--text-secondary)" }}>{currentEvent.venue}</span>
+                  </div>
+                )}
+
+                {currentEvent?.status && (
+                  <div>
+                    <span style={{ color: "var(--text-muted)", display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", marginBottom: 2 }}>
+                      Status
+                    </span>
+                    <span className={`badge ${currentEvent.status === "completed" ? "completed" : currentEvent.status === "ongoing" ? "high" : "medium"}`} style={{ fontSize: 11 }}>
+                      {currentEvent.status.toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--border-default)" }}>
+                <span style={{ color: "var(--text-muted)", display: "block", fontSize: 11, fontWeight: 600, textTransform: "uppercase", marginBottom: 6 }}>
+                  Capabilities
+                </span>
+                <ul style={{ margin: 0, paddingLeft: 18, color: "var(--text-secondary)", fontSize: 12, lineHeight: 1.6 }}>
+                  <li>Autonomous Task Dispatch</li>
+                  <li>Operational Risk Register</li>
+                  <li>Direct Document Grounding (RAG)</li>
+                  <li>Committee Announcements</li>
+                </ul>
               </div>
             </div>
 
+            {/* Guardrails & Governance Card */}
             <div
               style={{
                 padding: 16,
@@ -724,10 +736,13 @@ export default function Agent() {
                 lineHeight: 1.5,
               }}
             >
-              <strong style={{ color: "var(--color-primary)", display: "block", marginBottom: 4 }}>
-                Guardrails & Governance
-              </strong>
-              For any action that modifies club data or creates obligations, the AI will present a structured preview and require your confirmation before execution.
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                <ShieldAlert size={15} style={{ color: "var(--color-primary)" }} />
+                <strong style={{ color: "var(--color-primary)" }}>
+                  Guardrails & Governance
+                </strong>
+              </div>
+              For any action that modifies club data or creates obligations, the AI presents a structured preview and requires your confirmation before execution.
             </div>
           </div>
         </div>
