@@ -117,7 +117,7 @@ export default function Navbar({ onMenuToggle }) {
 
           {eventMenuOpen && (
             <div className="navbar-event-dropdown">
-              <div className="event-dropdown-header">SWITCH EVENT CONTEXT (5 CLUBS)</div>
+              <div className="event-dropdown-header">SWITCH EVENT CONTEXT</div>
               {events.length > 0 ? (
                 events.map((evt) => {
                   const evtId = evt._id || evt.id;
