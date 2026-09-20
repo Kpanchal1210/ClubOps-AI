@@ -1,27 +1,39 @@
+const path = require("path");
 require("dotenv").config({
-    path: "../../.env"
+    path: path.resolve(__dirname, "../../.env")
 });
 
 const mongoose = require("mongoose");
-
+const User = require("../../models/User");
+const Event = require("../../models/Event");
+const Club = require("../../models/Club");
 const { runAgent } = require("./agent");
 
 const test = async () => {
     try {
-
-        // Connect to MongoDB
-        await mongoose.connect(process.env.MONGO_URL);
+        const uri = process.env.MONGO_URI || process.env.MONGO_URL || "mongodb://127.0.0.1:27017/clubops";
+        await mongoose.connect(uri);
 
         console.log("MongoDB connected");
 
-        // Replace these with real values from your database
-        const userId = "6aae1d32e50392a4ecc2a5c1";
-        const eventId = "6aae51195cedadca22591f70";
+        // Find or use test user & event
+        let user = await User.findOne({ role: "organizer" }) || await User.findOne();
+        let club = user ? await Club.findOne({ members: user._id }) : null;
+        let event = club ? await Event.findOne({ clubId: club._id }) : null;
 
-        const command =
-            "Create a high priority task for me to contact sponsors tomorrow";
+        if (!user || !event) {
+            console.log("No existing user/event found for test run.");
+            return;
+        }
 
-        console.log("\nRunning agent...\n");
+        const userId = user._id.toString();
+        const eventId = event._id.toString();
+
+        console.log(`Using User: ${user.name} (${userId}), Event: ${event.name} (${eventId})`);
+
+        const command = "Send an announcement to all that final rehearsal starts in 1 hour";
+
+        console.log(`\nRunning agent with command: "${command}"...\n`);
 
         const result = await runAgent({
             command,
@@ -35,16 +47,9 @@ const test = async () => {
         );
 
     } catch (error) {
-
-        console.error(
-            "Agent Error:",
-            error
-        );
-
+        console.error("Agent Error:", error);
     } finally {
-
         await mongoose.connection.close();
-
     }
 };
 

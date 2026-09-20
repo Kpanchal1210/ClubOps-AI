@@ -4,48 +4,65 @@ const Club = require("../../../models/Club");
 
 
 const convertDeadline = (deadline) => {
+    if (!deadline) return undefined;
+    if (deadline instanceof Date) return deadline;
+    if (typeof deadline !== "string") return undefined;
 
-    if (!deadline) {
-        return undefined;
+    const value = deadline.toLowerCase().trim();
+    const now = new Date();
+
+    const applyTime = (targetDate, text) => {
+        const timeMatch = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+        if (timeMatch && timeMatch[1]) {
+            let hour = parseInt(timeMatch[1], 10);
+            const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+            const ampm = timeMatch[3]?.toLowerCase();
+            if (ampm === "pm" && hour < 12) hour += 12;
+            if (ampm === "am" && hour === 12) hour = 0;
+            targetDate.setHours(hour, minute, 0, 0);
+        } else {
+            targetDate.setHours(23, 59, 59, 999);
+        }
+        return targetDate;
+    };
+
+    if (value.includes("today")) {
+        return applyTime(new Date(), value);
     }
 
-    if (deadline instanceof Date) {
-        return deadline;
+    if (value.includes("tomorrow")) {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return applyTime(d, value);
     }
 
-    if (typeof deadline === "string") {
-
-        const value = deadline.toLowerCase().trim();
-
-        if (value === "tomorrow") {
-
-            const date = new Date();
-
-            date.setDate(date.getDate() + 1);
-            date.setHours(23, 59, 59, 999);
-
-            return date;
-        }
-
-        if (value === "today") {
-
-            const date = new Date();
-
-            date.setHours(23, 59, 59, 999);
-
-            return date;
-        }
-
-        const parsedDate = new Date(deadline);
-
-        if (!isNaN(parsedDate.getTime())) {
-            return parsedDate;
+    const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    for (let i = 0; i < days.length; i++) {
+        if (value.includes(days[i])) {
+            const currentDay = now.getDay();
+            let diff = i - currentDay;
+            if (diff <= 0) diff += 7;
+            const d = new Date();
+            d.setDate(now.getDate() + diff);
+            return applyTime(d, value);
         }
     }
 
-    throw new Error(
-        `Invalid deadline: ${deadline}`
-    );
+    const inDaysMatch = value.match(/in\s+(\d+)\s+days?/i);
+    if (inDaysMatch) {
+        const d = new Date();
+        d.setDate(now.getDate() + parseInt(inDaysMatch[1], 10));
+        return applyTime(d, value);
+    }
+
+    const parsedDate = new Date(deadline);
+    if (!isNaN(parsedDate.getTime())) {
+        return parsedDate;
+    }
+
+    const fallback = new Date();
+    fallback.setDate(fallback.getDate() + 1);
+    return applyTime(fallback, value);
 };
 
 

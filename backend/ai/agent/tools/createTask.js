@@ -4,7 +4,9 @@ const Club = require("../../../models/Club");
 const User = require("../../../models/User");
 
 
-const resolveAssignee = async (assigneeName) => {
+const Volunteer = require("../../../models/Volunteer");
+
+const resolveAssignee = async (assigneeName, eventId) => {
 
     if (!assigneeName) {
         return undefined;
@@ -17,66 +19,98 @@ const resolveAssignee = async (assigneeName) => {
         }
     });
 
-    if (!user) {
-        throw new Error(
-            `User "${assigneeName}" not found`
-        );
+    if (user) {
+        return user._id;
     }
 
-    return user._id;
-};
+    if (eventId) {
+        const volunteer = await Volunteer.findOne({
+            eventId,
+            name: {
+                $regex: assigneeName,
+                $options: "i"
+            }
+        });
 
-
-const convertDeadline = (deadline) => {
-
-    if (!deadline) {
-        return undefined;
-    }
-
-    // Already a Date
-    if (deadline instanceof Date) {
-        return deadline;
-    }
-
-    // Handle natural language deadline
-    if (typeof deadline === "string") {
-
-        const value = deadline.toLowerCase().trim();
-
-        // Tomorrow
-        if (value === "tomorrow") {
-
-            const date = new Date();
-
-            date.setDate(date.getDate() + 1);
-
-            // Set deadline to 11:59 PM tomorrow
-            date.setHours(23, 59, 59, 999);
-
-            return date;
-        }
-
-        // Today
-        if (value === "today") {
-
-            const date = new Date();
-
-            date.setHours(23, 59, 59, 999);
-
-            return date;
-        }
-
-        // Try normal date strings
-        const parsedDate = new Date(deadline);
-
-        if (!isNaN(parsedDate.getTime())) {
-            return parsedDate;
+        if (volunteer) {
+            if (volunteer.userId) {
+                return volunteer.userId;
+            }
+            if (volunteer.email) {
+                const userByEmail = await User.findOne({ email: volunteer.email });
+                if (userByEmail) {
+                    return userByEmail._id;
+                }
+            }
         }
     }
 
     throw new Error(
-        `Invalid deadline: ${deadline}`
+        `User "${assigneeName}" not found`
     );
+};
+
+
+const convertDeadline = (deadline) => {
+    if (!deadline) return undefined;
+    if (deadline instanceof Date) return deadline;
+    if (typeof deadline !== "string") return undefined;
+
+    const value = deadline.toLowerCase().trim();
+    const now = new Date();
+
+    const applyTime = (targetDate, text) => {
+        const timeMatch = text.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+        if (timeMatch && timeMatch[1]) {
+            let hour = parseInt(timeMatch[1], 10);
+            const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+            const ampm = timeMatch[3]?.toLowerCase();
+            if (ampm === "pm" && hour < 12) hour += 12;
+            if (ampm === "am" && hour === 12) hour = 0;
+            targetDate.setHours(hour, minute, 0, 0);
+        } else {
+            targetDate.setHours(23, 59, 59, 999);
+        }
+        return targetDate;
+    };
+
+    if (value.includes("today")) {
+        return applyTime(new Date(), value);
+    }
+
+    if (value.includes("tomorrow")) {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return applyTime(d, value);
+    }
+
+    const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    for (let i = 0; i < days.length; i++) {
+        if (value.includes(days[i])) {
+            const currentDay = now.getDay();
+            let diff = i - currentDay;
+            if (diff <= 0) diff += 7;
+            const d = new Date();
+            d.setDate(now.getDate() + diff);
+            return applyTime(d, value);
+        }
+    }
+
+    const inDaysMatch = value.match(/in\s+(\d+)\s+days?/i);
+    if (inDaysMatch) {
+        const d = new Date();
+        d.setDate(now.getDate() + parseInt(inDaysMatch[1], 10));
+        return applyTime(d, value);
+    }
+
+    const parsedDate = new Date(deadline);
+    if (!isNaN(parsedDate.getTime())) {
+        return parsedDate;
+    }
+
+    const fallback = new Date();
+    fallback.setDate(fallback.getDate() + 1);
+    return applyTime(fallback, value);
 };
 
 
@@ -142,7 +176,7 @@ const createTaskTool = async ({
     const convertedDeadline = convertDeadline(deadline);
 
     const resolvedAssignee = assignedTo ||
-        await resolveAssignee(assigneeName);
+        await resolveAssignee(assigneeName, eventId);
 
     // 6. Create task
 
@@ -150,7 +184,7 @@ const createTaskTool = async ({
         eventId,
         title,
         description,
-        assignedTo,
+        assignedTo: resolvedAssignee,
         createdBy: userId,
         priority: priority || "medium",
         deadline: convertedDeadline,

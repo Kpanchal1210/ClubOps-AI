@@ -1,5 +1,6 @@
+const path = require("path");
 require("dotenv").config({
-    path: "../../.env"
+    path: path.resolve(__dirname, "../../.env")
 });
 
 const { parseIntent } = require("./intentParser");

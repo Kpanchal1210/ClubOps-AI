@@ -64,10 +64,17 @@ const runAgent = async ({
 
         // 7. Return result
         return {
+            _id: action._id,
             actionId: action._id,
+            userId: action.userId,
+            eventId: action.eventId,
+            command: action.command,
             intent,
+            tool: intent,
             parameters,
-            result
+            status: action.status,
+            result,
+            createdAt: action.createdAt
         };
 
     } catch (error) {
