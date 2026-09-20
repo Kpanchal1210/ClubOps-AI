@@ -425,10 +425,37 @@ const deleteClub = async (req, res) => {
 };
 
 
+// ======================================================
+// GET ALL CLUBS
+// GET /api/clubs
+// ======================================================
+const getAllClubs = async (req, res) => {
+    try {
+        const clubs = await Club.find({})
+            .populate("adminId", "name email role")
+            .populate("members", "name email role skills availability")
+            .sort({ name: 1 });
+
+        return res.status(200).json({
+            success: true,
+            message: "Clubs fetched successfully",
+            data: { clubs }
+        });
+    } catch (error) {
+        console.error("Get all clubs error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error while fetching clubs"
+        });
+    }
+};
+
+
 module.exports = {
     createClub,
     getMyClub,
     getClubById,
+    getAllClubs,
     updateClub,
     addMember,
     removeMember,

@@ -418,23 +418,27 @@ const getMyEvents = async (req, res) => {
             });
         }
 
-        let clubId = user.clubId;
-        if (!clubId) {
-            const club = await Club.findOne({
-                $or: [{ adminId: req.user.userId }, { members: req.user.userId }]
-            });
-            if (club) clubId = club._id;
+        // Find all clubs where user is admin or member (or all clubs if admin/organizer)
+        const clubs = await Club.find({
+            $or: [
+                { adminId: req.user.userId },
+                { members: req.user.userId },
+                ...(user.role === "admin" || user.role === "organizer" ? [{}] : [])
+            ]
+        });
+
+        const clubIds = clubs.map(c => c._id);
+        if (user.clubId && !clubIds.some(id => id.toString() === user.clubId.toString())) {
+            clubIds.push(user.clubId);
         }
 
-        if (!clubId) {
-            return res.status(200).json({
-                success: true,
-                message: "No club associated with user",
-                data: { events: [] }
-            });
+        let query = {};
+        if (clubIds.length > 0) {
+            query = { clubId: { $in: clubIds } };
         }
 
-        const events = await Event.find({ clubId })
+        const events = await Event.find(query)
+            .populate("clubId", "name description")
             .populate("createdBy", "name email role")
             .sort({ startDate: 1 });
 

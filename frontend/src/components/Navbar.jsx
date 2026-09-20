@@ -109,25 +109,40 @@ export default function Navbar({ onMenuToggle }) {
             onClick={() => setEventMenuOpen(!eventMenuOpen)}
             title="Switch Event Context"
           >
-            <span>{clubName} / {activeEvent?.name?.toUpperCase() || "SELECT EVENT"}</span>
+            <span>
+              {(activeEvent?.clubId?.name || clubName).toUpperCase()} / {activeEvent?.name?.toUpperCase() || "SELECT EVENT"}
+            </span>
             <ChevronDown size={13} style={{ opacity: 0.7 }} />
           </button>
 
           {eventMenuOpen && (
             <div className="navbar-event-dropdown">
-              <div className="event-dropdown-header">SWITCH EVENT CONTEXT</div>
+              <div className="event-dropdown-header">SWITCH EVENT CONTEXT (5 CLUBS)</div>
               {events.length > 0 ? (
                 events.map((evt) => {
                   const evtId = evt._id || evt.id;
                   const isSelected = evtId === currentEventId;
+                  const evtClub = evt.clubId?.name || "";
                   return (
                     <div
                       key={evtId}
                       onClick={() => handleSelectEvent(evtId)}
                       className={`event-dropdown-item ${isSelected ? "active" : ""}`}
+                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "8px 12px" }}
                     >
-                      <span style={{ fontWeight: isSelected ? 700 : 500 }}>{evt.name}</span>
-                      <span className="event-status-tag">{evt.status}</span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
+                        {evtClub && (
+                          <span style={{ fontSize: 10, color: "var(--color-primary)", fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                            {evtClub}
+                          </span>
+                        )}
+                        <span style={{ fontWeight: isSelected ? 700 : 500, fontSize: 13, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                          {evt.name}
+                        </span>
+                      </div>
+                      <span className="event-status-tag" style={{ flexShrink: 0, textTransform: "capitalize" }}>
+                        {evt.status}
+                      </span>
                     </div>
                   );
                 })

@@ -156,3 +156,35 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: #333a4d;
 }
+
+/* Spinner & Button Loading Animations */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spin,
+.animate-spin {
+  animation: spin 0.8s linear infinite !important;
+  display: inline-block;
+  transform-origin: center center;
+  flex-shrink: 0;
+}
+
+button .spin,
+button .animate-spin {
+  animation: spin 0.8s linear infinite !important;
+  display: inline-block;
+  vertical-align: middle;
+  transform-origin: center center;
+  flex-shrink: 0;
+}
+
+button:has(.spin),
+button:has(.animate-spin) {
+  cursor: wait;
+}

@@ -4,6 +4,7 @@ const {
     createClub,
     getMyClub,
     getClubById,
+    getAllClubs,
     updateClub,
     addMember,
     removeMember,
@@ -14,6 +15,9 @@ const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+
+// Get all clubs
+router.get("/", protect, getAllClubs);
 
 // Create club
 router.post("/", protect, createClub);
