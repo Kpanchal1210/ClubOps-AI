@@ -173,7 +173,32 @@ David: I will coordinate the AV team and run sound checks.`,
       });
 
       const data = response?.data || response;
-      const meetingId = data?._id || data?.id;
+      const meetingId = data?._id || data?.id || data?.meeting?._id;
+
+      // Invalidate event cache so newly allocated tasks and meetings reload fresh
+      if (effectiveEventId) {
+        safeStorage.removeItem(`tasks_cache_${effectiveEventId}`);
+        safeStorage.removeItem(`meetings_cache_${effectiveEventId}`);
+      }
+
+      // If backend auto-processed on creation, navigate directly to AI results
+      if (data?.analysis || data?.createdTasks) {
+        safeStorage.setJSON("aiResult", data);
+        if (meetingId) {
+          safeStorage.setJSON(`meeting_analysis_${meetingId}`, data);
+        }
+        setMeetings((prev) => [
+          {
+            ...(data.meeting || data),
+            summary: data.analysis?.summary || data.meeting?.summary || data.summary,
+            processedByAI: true,
+          },
+          ...prev,
+        ]);
+        setShowSubmitModal(false);
+        navigate(`/ai-results?meetingId=${meetingId}&eventId=${effectiveEventId}`);
+        return;
+      }
 
       if (meetingId) {
         try {

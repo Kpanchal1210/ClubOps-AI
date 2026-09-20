@@ -2,6 +2,7 @@ const Meeting = require("../models/Meeting");
 const AIAnalysis = require("../models/AIAnalysis");
 const Event = require("../models/Event");
 const Club = require("../models/Club");
+const { processMeetingAnalysisInternal } = require("./aiAnalysisController");
 
 
 // --------------------------------------------------
@@ -90,6 +91,39 @@ const createMeeting = async (req, res) => {
             participants: participants || [],
             transcript
         });
+
+        // Automatically analyze transcript, prioritize tasks, and allocate to volunteers
+        if (transcript && transcript.trim()) {
+            try {
+                const analysisResult = await processMeetingAnalysisInternal({
+                    meetingId: meeting._id,
+                    userId: req.user.userId
+                });
+
+                return res.status(201).json({
+                    success: true,
+                    message: "Meeting created and analyzed with tasks allocated successfully",
+                    data: {
+                        meeting: analysisResult.meeting || meeting,
+                        analysis: analysisResult.analysis,
+                        createdTasks: analysisResult.createdTasks,
+                        createdRisks: analysisResult.createdRisks,
+                        _id: meeting._id,
+                        title: meeting.title,
+                        date: meeting.date,
+                        summary: analysisResult.meeting?.summary || meeting.summary,
+                        processedByAI: true
+                    }
+                });
+            } catch (aiErr) {
+                console.warn("[Create Meeting] Auto-analysis warning:", aiErr.message);
+                return res.status(201).json({
+                    success: true,
+                    message: "Meeting created successfully (AI processing pending)",
+                    data: meeting
+                });
+            }
+        }
 
         return res.status(201).json({
             success: true,
