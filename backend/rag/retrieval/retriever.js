@@ -1,5 +1,22 @@
+const mongoose = require("mongoose");
 const DocumentChunk = require("../../models/DocumentChunk");
 const { generateEmbedding } = require("../embeddings/embedder");
+
+/**
+ * Builds a flexible filter matching both String and ObjectId representations
+ * in MongoDB Schema.Types.Mixed fields.
+ */
+function buildFlexibleIdMatch(id) {
+  if (!id) return null;
+  const idStr = id.toString().trim();
+  const values = [idStr];
+  if (mongoose.Types.ObjectId.isValid(idStr)) {
+    try {
+      values.push(new mongoose.Types.ObjectId(idStr));
+    } catch (_) {}
+  }
+  return { $in: values };
+}
 
 /**
  * Calculates cosine similarity between two numeric vectors.
@@ -21,30 +38,45 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 /**
- * Fallback retrieval in case MongoDB Atlas $vectorSearch index is not configured or unavailable.
- * Computes cosine similarity in-process against candidate chunks.
+ * In-process similarity search against candidate chunks using hybrid dense + keyword scoring.
  */
-async function fallbackSimilaritySearch(query, queryEmbedding, limit, filterObj) {
+async function fallbackSimilaritySearch(query, queryEmbedding, limit, filterObj, altFilterObj = null) {
   try {
-    const candidates = await DocumentChunk.find(filterObj).lean();
+    let candidates = await DocumentChunk.find(filterObj).lean();
+    
+    // If combined filter returned 0, try alternate broader filter (e.g. eventId only)
+    if ((!candidates || candidates.length === 0) && altFilterObj) {
+      candidates = await DocumentChunk.find(altFilterObj).lean();
+    }
+
     if (!candidates || candidates.length === 0) {
+      // Final fallback: fetch any chunks if database has any for this context
       return [];
     }
 
+    const qTerms = query
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2);
+
     const scored = candidates.map((chunk) => {
-      let sim = 0;
+      let semScore = 0;
       if (Array.isArray(chunk.embedding) && chunk.embedding.length > 0 && queryEmbedding) {
-        sim = cosineSimilarity(queryEmbedding, chunk.embedding);
-      } else {
-        // Fallback keyword frequency
-        const qTerms = query.toLowerCase().split(/\s+/).filter(Boolean);
-        const txt = (chunk.text || "").toLowerCase();
-        let matches = 0;
-        for (const term of qTerms) {
-          if (txt.includes(term)) matches++;
-        }
-        sim = qTerms.length > 0 ? matches / qTerms.length : 0;
+        semScore = cosineSimilarity(queryEmbedding, chunk.embedding);
       }
+
+      // Keyword match frequency & phrase matching
+      const txt = (chunk.text || "").toLowerCase();
+      let matches = 0;
+      for (const term of qTerms) {
+        if (txt.includes(term)) matches++;
+      }
+      const kwScore = qTerms.length > 0 ? matches / qTerms.length : 0;
+
+      // Hybrid score: balance dense semantic similarity with exact keyword presence
+      let finalScore = semScore > 0 ? (0.7 * semScore) + (0.3 * kwScore) : kwScore;
+
       return {
         _id: chunk._id,
         documentId: chunk.documentId,
@@ -54,7 +86,7 @@ async function fallbackSimilaritySearch(query, queryEmbedding, limit, filterObj)
         chunkIndex: chunk.chunkIndex,
         text: chunk.text,
         metadata: chunk.metadata || {},
-        score: sim
+        score: finalScore,
       };
     });
 
@@ -90,73 +122,31 @@ async function retrieveRelevantChunks(
     console.warn("Could not generate query embedding, proceeding with text fallback:", embedErr.message);
   }
 
-  // Build filter object for both Atlas vectorSearch and in-process fallback
-  const filters = [];
+  // Build filter object supporting both String and ObjectId BSON types
   const queryFilter = {};
-
   if (documentId) {
-    filters.push({ documentId });
-    queryFilter.documentId = documentId;
+    queryFilter.documentId = buildFlexibleIdMatch(documentId);
   }
   if (clubId) {
-    filters.push({ clubId });
-    queryFilter.clubId = clubId;
+    queryFilter.clubId = buildFlexibleIdMatch(clubId);
   }
   if (eventId) {
-    filters.push({ eventId });
-    queryFilter.eventId = eventId;
+    queryFilter.eventId = buildFlexibleIdMatch(eventId);
   }
 
-  // 1. Try MongoDB Atlas $vectorSearch if queryEmbedding is available
-  if (queryEmbedding) {
-    try {
-      const vectorSearch = {
-        index: "vector_index",
-        path: "embedding",
-        queryVector: queryEmbedding,
-        numCandidates: 50,
-        limit: limit
-      };
-
-      if (filters.length === 1) {
-        vectorSearch.filter = filters[0];
-      } else if (filters.length > 1) {
-        vectorSearch.filter = { $and: filters };
-      }
-
-      const results = await DocumentChunk.aggregate([
-        {
-          $vectorSearch: vectorSearch
-        },
-        {
-          $project: {
-            _id: 1,
-            documentId: 1,
-            clubId: 1,
-            eventId: 1,
-            fileName: 1,
-            chunkIndex: 1,
-            text: 1,
-            metadata: 1,
-            score: {
-              $meta: "vectorSearchScore"
-            }
-          }
-        }
-      ]);
-
-      if (results && results.length > 0) {
-        return results;
-      }
-    } catch (atlasErr) {
-      console.warn("MongoDB Atlas $vectorSearch index not available, using in-memory similarity fallback:", atlasErr.message);
-    }
+  // Alternate filter with only eventId or documentId in case clubId was unlinked
+  let altFilter = null;
+  if (eventId) {
+    altFilter = { eventId: buildFlexibleIdMatch(eventId) };
+  } else if (clubId) {
+    altFilter = { clubId: buildFlexibleIdMatch(clubId) };
   }
 
-  // 2. Fallback to in-process cosine similarity / keyword search
-  return await fallbackSimilaritySearch(query, queryEmbedding, limit, queryFilter);
+  // Fallback to in-process cosine similarity / keyword search
+  return await fallbackSimilaritySearch(query, queryEmbedding, limit, queryFilter, altFilter);
 }
 
 module.exports = {
-  retrieveRelevantChunks
+  retrieveRelevantChunks,
+  buildFlexibleIdMatch,
 };

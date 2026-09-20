@@ -204,6 +204,10 @@ const ragQuery = async (req, res) => {
       eventId || null
     );
 
+    const sourceFiles = [
+      ...new Set((result.sources || []).map((s) => s.fileName || s.title || "Document").filter(Boolean))
+    ];
+
     return res.json({
       success: true,
       question: trimmedQuery,
@@ -213,13 +217,15 @@ const ragQuery = async (req, res) => {
       eventId: eventId || null,
       answer: result.answer,
       sources: result.sources || [],
+      sourceFiles,
       data: {
         query: trimmedQuery,
         clubId,
         eventId: eventId || null,
         documentId: documentId || null,
         answer: result.answer,
-        sources: result.sources || []
+        sources: result.sources || [],
+        sourceFiles
       }
     });
   } catch (error) {

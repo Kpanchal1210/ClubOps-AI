@@ -35,10 +35,10 @@ const documentService = {
   },
 
   // POST /api/rag/query — Ask questions grounded in uploaded event documents
-  // Body: { query, eventId }
-  // Response: { answer: string, sources: string[] }
-  queryRAG: async ({ query, eventId }) => {
-    const response = await api.post("/rag/query", { query, eventId });
+  // Body: { query, eventId, clubId }
+  // Response: { answer: string, sources: Array, sourceFiles: string[] }
+  queryRAG: async ({ query, eventId, clubId }) => {
+    const response = await api.post("/rag/query", { query, eventId, clubId });
     return response.data;
   },
 };

@@ -193,6 +193,7 @@ export default function EventDetails() {
       const response = await documentService.queryRAG({
         query: ragQuery,
         eventId: currentEventId,
+        clubId: event?.clubId?._id || (typeof event?.clubId === "string" ? event.clubId : undefined),
       });
       const data = response?.data || response;
       setRagAnswer(data);
@@ -775,26 +776,55 @@ export default function EventDetails() {
               <div
                 style={{
                   marginTop: 14,
-                  padding: "14px 16px",
-                  background: "var(--bg-subtle)",
-                  border: "1px solid var(--color-primary-border)",
+                  padding: "16px 18px",
+                  background: "var(--bg-subtle, #090a0f)",
+                  border: "1px solid var(--color-primary-border, rgba(99, 102, 241, 0.3))",
                   borderRadius: "var(--radius-md)",
                   fontSize: 13,
-                  lineHeight: 1.5,
+                  lineHeight: 1.6,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-primary)", fontWeight: 600, fontSize: 11.5, marginBottom: 4 }}>
-                  <CheckCircle2 size={13} />
-                  GROUNDED AI ANSWER
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-primary)", fontWeight: 700, fontSize: 11.5, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    <CheckCircle2 size={14} />
+                    <span>Grounded Document Intelligence</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="ghost-button button-sm"
+                    onClick={() => setRagAnswer(null)}
+                    style={{ fontSize: 11, padding: "2px 6px", color: "var(--text-muted)" }}
+                    title="Dismiss answer"
+                  >
+                    ✕ Dismiss
+                  </button>
                 </div>
-                <p style={{ margin: "0 0 8px", color: "var(--text-primary)" }}>{ragAnswer.answer}</p>
-                <div style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
-                  Sources: {ragAnswer.sources.map((s) => (
-                    <span key={s} className="badge low" style={{ marginLeft: 6, fontSize: 10.5 }}>
-                      {s}
-                    </span>
-                  ))}
+
+                <div style={{ 
+                  color: "var(--text-primary)", 
+                  whiteSpace: "pre-wrap", 
+                  wordBreak: "break-word",
+                  lineHeight: 1.65,
+                  fontSize: 13 
+                }}>
+                  {ragAnswer.answer}
                 </div>
+
+                {/* Sources list */}
+                {((ragAnswer.sourceFiles && ragAnswer.sourceFiles.length > 0) || (ragAnswer.sources && ragAnswer.sources.length > 0)) && (
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--border-default, rgba(255, 255, 255, 0.08))", fontSize: 11.5, color: "var(--text-muted)", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+                    <span style={{ fontWeight: 600 }}>Sources:</span>
+                    {(ragAnswer.sourceFiles || ragAnswer.sources).map((s, idx) => {
+                      const label = typeof s === "string" ? s : (s.title || s.fileName || `Doc ${idx + 1}`);
+                      const key = typeof s === "string" ? `${s}-${idx}` : (s.documentId ? `${s.documentId}-${idx}` : idx);
+                      return (
+                        <span key={key} className="badge low" style={{ fontSize: 10.5, padding: "2px 8px" }}>
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
