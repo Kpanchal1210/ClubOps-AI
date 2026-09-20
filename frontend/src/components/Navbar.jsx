@@ -6,6 +6,7 @@ import {
   Menu,
   ChevronDown,
   Sparkles,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useEvent } from "../context/EventContext";
@@ -151,12 +152,45 @@ export default function Navbar({ onMenuToggle }) {
                   <span>No events created yet</span>
                 </div>
               )}
+
+              {/* Quick actions inside dropdown */}
+              <div style={{ borderTop: "1px solid #2a2a2a", padding: "8px 10px", display: "flex", gap: 6, flexDirection: "column", background: "#0a0a0a" }}>
+                <Link
+                  to="/events?create=true"
+                  onClick={() => setEventMenuOpen(false)}
+                  className="primary-button button-sm"
+                  style={{ width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", textDecoration: "none" }}
+                >
+                  <Plus size={13} />
+                  <span>Create New Event</span>
+                </Link>
+                <Link
+                  to="/events?aiPlanner=true"
+                  onClick={() => setEventMenuOpen(false)}
+                  className="secondary-button button-sm"
+                  style={{ width: "100%", justifyContent: "center", fontSize: 12, padding: "7px 10px", textDecoration: "none" }}
+                >
+                  <Sparkles size={13} style={{ color: "var(--color-primary)" }} />
+                  <span>AI Event Planner</span>
+                </Link>
+              </div>
             </div>
           )}
         </div>
       </div>
 
       <div className="navbar-ref-right">
+        {/* Quick New Event Link */}
+        <Link
+          to="/events?create=true"
+          className="navbar-event-pill-btn"
+          style={{ padding: "6px 12px", gap: 6, textDecoration: "none", color: "var(--text-primary)" }}
+          title="Create New Event"
+        >
+          <Plus size={13} style={{ color: "var(--color-primary)" }} />
+          <span>NEW EVENT</span>
+        </Link>
+
         {/* LIVE EVENT Link */}
         <Link
           to={activeEvent ? `/events/${activeEvent._id || activeEvent.id}` : "/events"}

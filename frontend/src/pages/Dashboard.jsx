@@ -156,6 +156,33 @@ export default function Dashboard() {
 
   return (
     <div style={{ maxWidth: 1440, margin: "0 auto" }}>
+      {/* ── Dashboard Admin Header ── */}
+      <div className="page-header" style={{ marginBottom: 20 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <span className="status-pulse" />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              COMMAND CONSOLE / {user?.role?.toUpperCase() || "ORGANIZER"}
+            </span>
+          </div>
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>Operations Dashboard</h1>
+          <p style={{ margin: "4px 0 0", color: "var(--text-secondary)", fontSize: 13.5 }}>
+            Central command for coordinating events, volunteers, tasks, and intelligence.
+          </p>
+        </div>
+
+        <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Link to="/events?aiPlanner=true" className="secondary-button">
+            <Sparkles size={15} style={{ color: "var(--color-primary)" }} />
+            <span>AI Event Planner</span>
+          </Link>
+          <Link to="/events?create=true" className="primary-button">
+            <Plus size={15} />
+            <span>Create Event</span>
+          </Link>
+        </div>
+      </div>
+
       {/* ── REFERENCE HERO SECTION (ASYYMETRIC EDITORIAL GRID) ── */}
       <div className="reference-hero-grid">
         {/* Left: Off-white / Cream Hero Panel */}
@@ -342,9 +369,19 @@ export default function Dashboard() {
                 <CalendarDays size={18} style={{ color: "var(--color-primary)" }} />
                 <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, textTransform: "uppercase" }}>Upcoming Events</h2>
               </div>
-              <Link to="/events" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)", display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)" }}>
-                VIEW ALL <ChevronRight size={13} />
-              </Link>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Link
+                  to="/events?create=true"
+                  className="primary-button button-sm"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                >
+                  <Plus size={13} />
+                  <span>Create Event</span>
+                </Link>
+                <Link to="/events" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)", display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)" }}>
+                  VIEW ALL <ChevronRight size={13} />
+                </Link>
+              </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

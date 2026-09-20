@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
   Search,
@@ -35,6 +35,7 @@ const EMPTY_FORM = {
 
 export default function Events() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { setCurrentEventId, refreshEvents } = useEvent();
 
   const cachedEvents = safeStorage.getJSON("events_cache") || [];
@@ -59,6 +60,16 @@ export default function Events() {
   const [aiPlanResult, setAiPlanResult] = useState(null);
   const [aiPlanningLoading, setAiPlanningLoading] = useState(false);
   const [aiPlanError, setAiPlanError] = useState("");
+
+  // Check URL query parameters to auto-launch modals
+  useEffect(() => {
+    if (searchParams.get("create") === "true") {
+      setShowForm(true);
+    }
+    if (searchParams.get("aiPlanner") === "true") {
+      setShowAIPlanner(true);
+    }
+  }, [searchParams]);
 
   /* ── AI Event Planning ──────────────────────── */
   const handleGeneratePlan = async (promptToUse) => {

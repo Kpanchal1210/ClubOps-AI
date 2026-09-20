@@ -8,13 +8,14 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const navigationItems = [
     { label: "OVERVIEW", number: "01", path: currentEventId ? `/dashboard?eventId=${currentEventId}` : "/dashboard" },
-    { label: "TASKS", number: "02", path: currentEventId ? `/tasks?eventId=${currentEventId}` : "/tasks" },
-    { label: "RISKS", number: "03", path: currentEventId ? `/risks?eventId=${currentEventId}` : "/risks" },
-    { label: "VOLUNTEERS", number: "04", path: currentEventId ? `/volunteers?eventId=${currentEventId}` : "/volunteers" },
-    { label: "MEETINGS", number: "05", path: currentEventId ? `/meetings?eventId=${currentEventId}` : "/meetings" },
-    { label: "DOCUMENTS", number: "06", path: currentEventId ? `/events/${currentEventId}?tab=documents` : "/events", alias: "/documents" },
-    { label: "AI AGENT", number: "07", path: currentEventId ? `/agent?eventId=${currentEventId}` : "/agent" },
-    { label: "NOTIFICATIONS", number: "08", path: "/notifications" },
+    { label: "EVENTS", number: "02", path: "/events" },
+    { label: "TASKS", number: "03", path: currentEventId ? `/tasks?eventId=${currentEventId}` : "/tasks" },
+    { label: "RISKS", number: "04", path: currentEventId ? `/risks?eventId=${currentEventId}` : "/risks" },
+    { label: "VOLUNTEERS", number: "05", path: currentEventId ? `/volunteers?eventId=${currentEventId}` : "/volunteers" },
+    { label: "MEETINGS", number: "06", path: currentEventId ? `/meetings?eventId=${currentEventId}` : "/meetings" },
+    { label: "DOCUMENTS", number: "07", path: currentEventId ? `/events/${currentEventId}?tab=documents` : "/events", alias: "/documents" },
+    { label: "AI AGENT", number: "08", path: currentEventId ? `/agent?eventId=${currentEventId}` : "/agent" },
+    { label: "NOTIFICATIONS", number: "09", path: "/notifications" },
   ];
 
   return (
