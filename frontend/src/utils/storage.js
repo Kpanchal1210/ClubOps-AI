@@ -39,4 +39,13 @@ export const safeStorage = {
       return fallback;
     }
   },
+
+  setJSON: (key, value) => {
+    try {
+      const str = JSON.stringify(value);
+      localStorage.setItem(key, str);
+    } catch (e) {
+      console.warn(`localStorage.setJSON failed for key "${key}":`, e);
+    }
+  },
 };

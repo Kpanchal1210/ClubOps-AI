@@ -530,10 +530,27 @@ David: I will coordinate the AV team and run sound checks.`,
             </div>
 
             <div className="modal-footer">
-              <Link to="/ai-results" className="primary-button button-sm">
-                <Sparkles size={13} />
-                View Extracted Results
-              </Link>
+              <button
+                className="primary-button button-sm"
+                onClick={() => {
+                  const t = selectedTranscript;
+                  setSelectedTranscript(null);
+                  handleViewAnalysis(t);
+                }}
+                disabled={analyzingMeetingId === (selectedTranscript._id || selectedTranscript.id)}
+              >
+                {analyzingMeetingId === (selectedTranscript._id || selectedTranscript.id) ? (
+                  <>
+                    <Loader2 size={13} className="spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={13} />
+                    View Analysis & Extracted Results
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
