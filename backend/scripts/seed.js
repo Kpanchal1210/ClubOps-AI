@@ -800,7 +800,104 @@ Each finalist team is allocated strictly 4 minutes for live demonstration follow
       },
     ]);
 
-    console.log(`✓ Uploaded 3 meeting transcript documents + 2 policy/guideline documents with indexed RAG chunks.`);
+    // Document 6: Corporate Sponsorship Agreement DOCX
+    const doc6Content = `AI HACKATHON 2026 — CORPORATE SPONSORSHIP AGREEMENT & TIER DELIVERABLES
+Organizer: AI & Robotics Society (AIRS)
+Venue: Grand Campus Hall, Building B
+
+1. Tier Allocation & Financial Commitments:
+- Platinum Sponsor ($15,000): Google Cloud & DeepMind. Includes 4 mentor passes, premier keynote stage backdrop branding, 15-minute opening remarks slot, and exclusive recruiting booth in Pavilion North.
+- Gold Sponsor ($10,000): NVIDIA Autonomous Machines. Includes 2 mentor passes, Stage B logo branding, and dedicated hardware lab breakout room with 16 Jetson Orin developer kits.
+- Silver Sponsor ($5,000): Cloudflare & Hugging Face. Includes logo presence on all attendee NFC badges and official club website.
+
+2. Sponsor Branding & Rehearsal Schedule:
+All sponsor high-resolution vector logos and physical stage banners must be delivered to Stage Manager Vikram Sethi by Friday 11:00 AM. Sponsor stage backdrop verification will be conducted by Aisha Patel at 8:00 AM Saturday before public entry.
+
+3. Hardware Lab & Power Restrictions:
+NVIDIA hardware demo units must operate strictly on designated 20-amp circuits in Room 108. No industrial laser equipment or high-temperature heat guns are permitted without written facilities clearance.`;
+
+    const doc6 = await Document.create({
+      clubId: club._id,
+      eventId: eventOngoing._id,
+      title: "AI Hackathon 2026 — Corporate Sponsorship & Tier Deliverables",
+      fileName: "AI_Hackathon_2026_Corporate_Sponsorship_Agreement.docx",
+      fileType: "docx",
+      content: doc6Content,
+      processed: true,
+      uploadedBy: organizerUser._id,
+    });
+
+    await DocumentChunk.create([
+      {
+        documentId: doc6._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc6.fileName,
+        chunkIndex: 0,
+        text: `CORPORATE SPONSORSHIP TIERS (AI Hackathon 2026)\nPlatinum ($15,000): Google Cloud & DeepMind (4 mentor passes, keynote stage branding, recruiting booth Pavilion North).\nGold ($10,000): NVIDIA Autonomous Machines (2 mentor passes, Stage B logo, hardware lab Room 108 with 16 Jetson Orin kits).\nSilver ($5,000): Cloudflare & Hugging Face (NFC badge branding and website).`,
+        metadata: { title: doc6.title },
+      },
+      {
+        documentId: doc6._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc6.fileName,
+        chunkIndex: 1,
+        text: `SPONSOR DELIVERABLES & POWER RULES (AI Hackathon 2026)\n- High-res vector logos delivered to Vikram Sethi by Friday 11:00 AM.\n- Sponsor stage backdrop photos by Aisha Patel at 8:00 AM Saturday.\n- NVIDIA hardware demos restricted to 20-amp circuits in Room 108. No industrial lasers permitted.`,
+        metadata: { title: doc6.title },
+      },
+    ]);
+
+    // Document 7: Campus AV & Main Stage Equipment Rental Contract DOC
+    const doc7Content = `CAMPUS AV & MAIN STAGE EQUIPMENT RENTAL CONTRACT
+Vendor: Metro Sound & Stage Lighting Rentals Inc.
+Client: AI & Robotics Society (AIRS) — AI Hackathon 2026
+
+1. Equipment Inventory & Daily Rates:
+- 4x Shure UHF-R Wireless Lapel Microphones ($120/day per unit)
+- 1x Christie 4K Laser Projection System ($850/day)
+- 8x High-Output LED Stage Wash Spotlights ($75/day per unit)
+- 1x 32-Channel Digital Audio Mixing Console ($300/day)
+
+2. Delivery, Inspection, and Setup Timelines:
+Equipment delivery is scheduled for Thursday 2:00 PM at Loading Bay 3. Marcus Vance is designated technical recipient for receipt sign-off. Audio frequency calibration and PA line tests must conclude before Friday 5:00 PM.
+
+3. Security & Damage Deposit:
+A refundable equipment bond of $3,500 has been placed on hold. Any cosmetic or technical damage must be documented within 2 hours of post-event return on Sunday 8:00 PM. Unreturned cables or power breakout strips will incur a replacement fee of $45 each.`;
+
+    const doc7 = await Document.create({
+      clubId: club._id,
+      eventId: eventOngoing._id,
+      title: "Campus AV & Main Stage Equipment Rental Contract",
+      fileName: "Campus_AV_and_Stage_Equipment_Rental_Contract.doc",
+      fileType: "doc",
+      content: doc7Content,
+      processed: true,
+      uploadedBy: organizerUser._id,
+    });
+
+    await DocumentChunk.create([
+      {
+        documentId: doc7._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc7.fileName,
+        chunkIndex: 0,
+        text: `STAGE AV EQUIPMENT RENTAL INVENTORY (AI Hackathon 2026)\n- 4x Shure UHF-R Wireless Lapel Microphones ($120/day)\n- 1x Christie 4K Laser Projection System ($850/day)\n- 8x High-Output LED Stage Wash Spotlights ($75/day)\n- 1x 32-Channel Digital Audio Mixing Console ($300/day)`,
+        metadata: { title: doc7.title },
+      },
+      {
+        documentId: doc7._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc7.fileName,
+        chunkIndex: 1,
+        text: `EQUIPMENT DELIVERY & DAMAGE BOND PROTOCOLS (AI Hackathon 2026)\n- Thursday 2:00 PM delivery at Loading Bay 3; Marcus Vance to sign receipt.\n- Audio frequency calibration completed before Friday 5:00 PM.\n- $3,500 refundable security deposit. Unreturned cables incur $45 replacement fee each.`,
+        metadata: { title: doc7.title },
+      },
+    ]);
+
+    console.log(`✓ Uploaded 3 meeting transcripts + 2 PDF policies + 1 DOCX agreement + 1 DOC contract with indexed RAG chunks.`);
 
     console.log("\n==========================================================");
     console.log("             SEED DATA GENERATION COMPLETE                ");

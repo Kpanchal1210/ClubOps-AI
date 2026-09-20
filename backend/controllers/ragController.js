@@ -2,7 +2,7 @@ const Club = require("../models/Club");
 const Event = require("../models/Event");
 const Document = require("../models/Document");
 const DocumentChunk = require("../models/DocumentChunk");
-const { extractTextFromPDF } = require("../rag/loaders/documentLoader");
+const { extractTextFromPDF, extractTextFromFile } = require("../rag/loaders/documentLoader");
 const { chunkText } = require("../rag/chunking/chunker");
 const { generateEmbedding } = require("../rag/embeddings/embedder");
 const { generateRAGAnswer } = require("../rag/services/ragService");
@@ -58,18 +58,20 @@ const ragUpload = async (req, res) => {
       });
     }
 
-    if (req.file.mimetype !== "application/pdf") {
+    const ext = (req.file.originalname || "").split(".").pop().toLowerCase();
+    const allowedExts = ["pdf", "docx", "doc", "txt", "md"];
+    if (!allowedExts.includes(ext) && req.file.mimetype !== "application/pdf") {
       return res.status(400).json({
         success: false,
-        message: "Only PDF files are supported"
+        message: "Supported file formats: PDF, DOCX, DOC, TXT"
       });
     }
 
-    console.log(`[RAG Upload] Processing: ${req.file.originalname} for Club: ${clubId}`);
+    console.log(`[RAG Upload] Processing: ${req.file.originalname} (${ext}) for Club: ${clubId}`);
 
-    // 1. Extract plain text from PDF
-    const result = await extractTextFromPDF(req.file.buffer);
-    console.log(`[RAG Upload] Extracted ${result.text.length} characters across ${result.pages} pages`);
+    // 1. Extract plain text from document
+    const result = await extractTextFromFile(req.file.buffer, req.file.originalname, req.file.mimetype);
+    console.log(`[RAG Upload] Extracted ${result.text.length} characters across ${result.pages} pages/sections`);
 
     // 2. Chunk text
     const chunks = chunkText(result.text, 500, 50);
@@ -85,8 +87,8 @@ const ragUpload = async (req, res) => {
         eventId: eventId || undefined,
         title: req.file.originalname.replace(/\.[^/.]+$/, ""),
         fileName: req.file.originalname,
-        fileType: "pdf",
-        content: result.text.slice(0, 5000), // Preview content
+        fileType: ext || "txt",
+        content: result.text,
         uploadedBy: req.user?.userId || club.organizers?.[0] || club.members?.[0]
       });
     } catch (docErr) {

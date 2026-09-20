@@ -946,7 +946,8 @@ export default function EventDetails() {
                       onChange={(e) => setUploadDocType(e.target.value)}
                     >
                       <option value="PDF">PDF (.pdf)</option>
-                      <option value="DOC">Word Document (.doc, .docx)</option>
+                      <option value="DOCX">Word Document (.docx)</option>
+                      <option value="DOC">Legacy Word Document (.doc)</option>
                       <option value="TXT">Plain Text (.txt)</option>
                     </select>
 
