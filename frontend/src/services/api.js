@@ -1,10 +1,14 @@
 import axios from "axios";
 import { safeStorage } from "../utils/storage";
 
+const defaultApiUrl =
+  import.meta.env.VITE_API_URL ||
+  (typeof window !== "undefined" && window.location.hostname.includes("github.io")
+    ? "https://lanka-motherboard-respected-detection.trycloudflare.com/api"
+    : "/api");
+
 const api = axios.create({
-  baseURL:
-    import.meta.env.VITE_API_URL ||
-    "/api",
+  baseURL: defaultApiUrl,
 
   headers: {
     "Content-Type": "application/json",
