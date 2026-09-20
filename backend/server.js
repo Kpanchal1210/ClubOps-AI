@@ -36,7 +36,6 @@ const sendHealth = (req, res) => {
     });
 };
 
-app.get("/", sendHealth);
 app.get("/health", sendHealth);
 app.get("/api/health", sendHealth);
 
@@ -106,15 +105,34 @@ app.get("/api/dashboard/:eventId", protect, getEventDashboard);
 
 
 // --------------------------------------------------
-// 404 Handler
+// Static Frontend & 404 Handler
 // --------------------------------------------------
 
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: "API endpoint not found"
+const path = require("path");
+const fs = require("fs");
+
+const frontendDistPath = path.join(__dirname, "../frontend/dist");
+
+if (fs.existsSync(frontendDistPath)) {
+    app.use(express.static(frontendDistPath));
+
+    app.use((req, res) => {
+        if (req.path.startsWith("/api")) {
+            return res.status(404).json({
+                success: false,
+                message: "API endpoint not found"
+            });
+        }
+        res.sendFile(path.join(frontendDistPath, "index.html"));
     });
-});
+} else {
+    app.use((req, res) => {
+        res.status(404).json({
+            success: false,
+            message: "API endpoint not found"
+        });
+    });
+}
 
 
 // --------------------------------------------------

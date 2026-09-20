@@ -295,6 +295,36 @@ After running `npm run seed`, log in with the default administrator account:
 
 ---
 
+## 🚀 Live Deployment Guide
+
+ClubOps-AI is cloud-ready with zero local database dependencies (backed by MongoDB Atlas Cloud).
+
+### Option A: 1-Click Unified Render Deployment (Recommended)
+You can deploy both the React Frontend and Node.js Backend on a single free Render Web Service:
+1. Go to [Render.com](https://dashboard.render.com/) and click **New +** → **Web Service** (or **Blueprint**).
+2. Connect your GitHub repository: `https://github.com/Kpanchal1210/ClubOps-AI`.
+3. Render automatically detects `render.yaml`:
+   - **Build Command**: `npm run install:all && npm run build`
+   - **Start Command**: `npm start`
+4. Set the Environment Variables:
+   - `MONGO_URI`: `mongodb+srv://kkpatel3790_db_user:test123@clubopscluster.njuk6ew.mongodb.net/?appName=ClubOpsCluster`
+   - `JWT_SECRET`: `clubops_secret_2026`
+   - `GEMINI_API_KEY`: *(Your Google Gemini API Key)*
+5. Click **Deploy**. Both the fullstack web UI and the AI engine are live on a single HTTPS URL!
+
+### Option B: Vercel (Frontend) + Render (Backend)
+1. **Backend (Render)**:
+   - Root Directory: `backend`
+   - Build: `npm install` | Start: `npm start`
+   - Set `MONGO_URI`, `JWT_SECRET`, `GEMINI_API_KEY`
+2. **Frontend (Vercel)**:
+   - Root Directory: `frontend`
+   - Framework Preset: `Vite`
+   - Environment Variable: `VITE_API_URL` = `https://<your-backend-app>.onrender.com/api`
+   - SPA routing is pre-configured via `frontend/vercel.json`.
+
+---
+
 ## 🧪 Automated Testing & Verification
 
 Run the autonomous end-to-end verification script to validate all 9 deliverables:

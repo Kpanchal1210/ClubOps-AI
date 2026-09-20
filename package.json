@@ -1,0 +1,14 @@
+{
+  "name": "clubops-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ClubOps-AI - Autonomous AI Operations Engine for College Clubs & Campus Events",
+  "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "build": "npm --prefix frontend run build",
+    "start": "node backend/server.js",
+    "server": "node backend/server.js",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  }
+}
