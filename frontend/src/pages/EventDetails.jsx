@@ -736,14 +736,20 @@ export default function EventDetails() {
               </thead>
               <tbody>
                 {documents.map((doc) => {
-                  const statusClass =
-                    doc.status === "processed"
-                      ? "completed"
-                      : doc.status === "processing"
-                      ? "ongoing"
-                      : doc.status === "failed"
-                      ? "critical"
-                      : "pending";
+                  const docTitle = doc.title || doc.name || doc.fileName || "Document";
+                  const docType = (doc.fileType || doc.type || "TXT").toUpperCase();
+                  const isProcessed = doc.processed || doc.status === "processed";
+                  const statusClass = isProcessed
+                    ? "completed"
+                    : doc.status === "processing"
+                    ? "ongoing"
+                    : doc.status === "failed"
+                    ? "critical"
+                    : "pending";
+
+                  const uploaderName = doc.uploadedBy?.name || doc.uploadedBy?.email || (typeof doc.uploadedBy === "string" ? doc.uploadedBy : "Organizer");
+                  const eventDisplayName = doc.eventId?.name || doc.event || event?.name || "General";
+                  const docDate = doc.createdAt || doc.date || new Date();
 
                   return (
                     <tr key={doc._id}>
@@ -751,30 +757,30 @@ export default function EventDetails() {
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <FileText size={16} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
                           <div>
-                            <strong style={{ color: "var(--text-primary)" }}>{doc.name}</strong>
+                            <strong style={{ color: "var(--text-primary)" }}>{docTitle}</strong>
                             <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11 }}>
-                              {doc.size || "1.2 MB"}
+                              {doc.fileName ? `${doc.fileName} • ` : ""}{doc.size || "1.2 MB"}
                             </small>
                           </div>
                         </div>
                       </td>
                       <td>
                         <span className="badge medium" style={{ fontWeight: 700, fontSize: 10 }}>
-                          {doc.type}
+                          {docType}
                         </span>
                       </td>
-                      <td>{doc.event}</td>
-                      <td>{doc.uploadedBy}</td>
+                      <td>{eventDisplayName}</td>
+                      <td>{uploaderName}</td>
                       <td>
                         <span className={`badge ${statusClass}`} style={{ textTransform: "capitalize" }}>
-                          {doc.status}
+                          {isProcessed ? "Processed" : doc.status || "Pending"}
                         </span>
                       </td>
-                      <td>{new Date(doc.date).toLocaleDateString()}</td>
+                      <td>{new Date(docDate).toLocaleDateString()}</td>
                       <td style={{ textAlign: "right" }}>
                         <button
                           className="ghost-button button-sm"
-                          onClick={() => alert(`Viewing metadata for ${doc.name}`)}
+                          onClick={() => alert(`Document Details:\nTitle: ${docTitle}\nType: ${docType}\nStatus: ${isProcessed ? "Processed (RAG Indexed)" : "Pending"}\nEvent: ${eventDisplayName}`)}
                           title="View Document"
                         >
                           <Eye size={13} />

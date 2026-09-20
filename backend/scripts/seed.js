@@ -358,8 +358,9 @@ async function seed() {
     console.log(`✓ Created tasks for all 3 events (4 pending, 5 ongoing, 4 completed).`);
 
     // =========================================================================
-    // 8. Create Operational Risks
+    // 8. Create Operational Risks across Events
     // =========================================================================
+    // Ongoing Event Risks
     await Risk.create({
       title: "Unsigned Catering Contract",
       description: "Pending vendor signature could delay hot dinner delivery for 280 hackers.",
@@ -383,6 +384,29 @@ async function seed() {
     });
 
     await Risk.create({
+      title: "Keynote Stage Power Circuit Overload",
+      description: "Concurrent stage lighting and 4K video transmitters may exceed 15A wall breaker capacity.",
+      eventId: eventOngoing._id,
+      severity: "high",
+      probability: "medium",
+      status: "open",
+      assignedTo: getUserByName("Marcus Vance")._id,
+      recommendedAction: "Run dedicated 3-phase power extension from main distribution panel in Room 104.",
+    });
+
+    await Risk.create({
+      title: "Overnight Security Corridor Access Restriction",
+      description: "Campus facilities locks side building gates at 11:00 PM, preventing hackathon attendee re-entry.",
+      eventId: eventOngoing._id,
+      severity: "medium",
+      probability: "medium",
+      status: "open",
+      assignedTo: getUserByName("Samuel Torres")._id,
+      recommendedAction: "Issue 24-hour electronic keycard badges to volunteer security leads.",
+    });
+
+    // Pending Event Risks
+    await Risk.create({
       title: "LiPo Battery Thermal Runaway Hazard",
       description: "High-discharge drone batteries risk fire if charged rapidly without supervision.",
       eventId: eventPending._id,
@@ -393,21 +417,54 @@ async function seed() {
       recommendedAction: "Mandate fire-safe charging bags and station Class-D extinguishers in pit lane.",
     });
 
-    console.log(`✓ Created operational risks for active events.`);
+    await Risk.create({
+      title: "Arena Protective Netting Deflection Risk",
+      description: "High-speed 120km/h drones may deflect safety netting into spectator viewing barrier.",
+      eventId: eventPending._id,
+      severity: "high",
+      probability: "low",
+      status: "open",
+      assignedTo: getUserByName("Maya Lin")._id,
+      recommendedAction: "Enforce 2-meter safety standoff distance between net perimeter and spectator railing.",
+    });
+
+    await Risk.create({
+      title: "FPV Video Transmitter 5.8GHz Spectrum Jamming",
+      description: "Unregistered analog video transmitters broadcasting on adjacent race channels may black out pilot goggles.",
+      eventId: eventPending._id,
+      severity: "medium",
+      probability: "high",
+      status: "open",
+      assignedTo: getUserByName("Lucas Gray")._id,
+      recommendedAction: "Mandate hardware check-in with calibrated RF spectrum analyzer before flight heats.",
+    });
+
+    // Completed Event Risks (Resolved)
+    await Risk.create({
+      title: "Quadruped Robot Transport Crating Damage",
+      description: "Rented quadruped robot crate showed structural hinge wear prior to transport.",
+      eventId: eventCompleted._id,
+      severity: "medium",
+      probability: "low",
+      status: "resolved",
+      assignedTo: getUserByName("Aisha Patel")._id,
+      recommendedAction: "Secured replacement flight cases with vendor before exhibition load-in.",
+    });
+
+    console.log(`✓ Created 8 operational risks across all events.`);
 
     // =========================================================================
-    // 9. Create 3 Meetings (2 Completed with AI Analysis + 1 Pending Live Testing)
+    // 9. Create Meetings across Events (Completed with AI Analysis + Pending)
     // =========================================================================
+    const allParticipants = [organizerUser._id, ...volunteerUsers.map((v) => v.userDoc._id)];
 
-    // Meeting 1: Completed with AI Analysis (Linked to Ongoing Event)
+    // --- EVENT 2 (ONGOING): Meeting 1 (Completed with AI Analysis) ---
     const meeting1Transcript = `Krish: Welcome everyone to the AI Hackathon operations sync.
 Marcus Vance: I have confirmed the 4 lapel microphones and main projector. We will test the stage PA system by Friday 2 PM.
 Elena Rostova: I reviewed the catering numbers. We need to finalize the vegan and gluten-free dietary boxes by Thursday evening.
 David Kim: The campus Wi-Fi repeaters arrived. I will set up the repeater bridge in Hall B before Saturday morning.
 Krish: Risk check: The main catering contract is still awaiting signature. We must sign before Friday to avoid delay penalties.
 Chloe Bennett: 300 NFC attendee badges and welcome lanyards will arrive from the print shop by Thursday 10 AM.`;
-
-    const allParticipants = [organizerUser._id, ...volunteerUsers.map((v) => v.userDoc._id)];
 
     const meeting1 = await Meeting.create({
       title: "Sprint Planning & Risk Assessment Sync",
@@ -439,7 +496,7 @@ Chloe Bennett: 300 NFC attendee badges and welcome lanyards will arrive from the
       ]
     });
 
-    // Meeting 2: Completed with AI Analysis (Linked to Pending Event)
+    // --- EVENT 1 (PENDING): Meeting 2 (Completed with AI Analysis) ---
     const meeting2Transcript = `Krish: Let's inspect the safety perimeter for the Autonomous Drone Racing Cup.
 Maya Lin: The 10-meter ceiling netting is delivered. We need Lucas Gray and Samuel Torres to secure the anchors along the east truss by Tuesday.
 Samuel Torres: I inspected the LiPo battery charging station. We must install 3 sand buckets and 2 Class-D fire extinguishers in the pit lane.
@@ -474,7 +531,7 @@ Krish: Decision: No drone is permitted to arm motors without a verified fail-saf
       ]
     });
 
-    // Meeting 3: Pending Live Testing (Linked to Ongoing Event)
+    // --- EVENT 2 (ONGOING): Meeting 3 (Pending Live Testing) ---
     const meeting3Transcript = `Krish: Team, let's run our final tech check before the keynote doors open tomorrow morning.
 Marcus Vance: The wireless lapel mic frequency interference check passed. Battery packs are fully charged for 12 hours of stage presentations.
 Vikram Sethi: Premier sponsors Google and NVIDIA have delivered their stage banners. We need Aisha Patel to photograph the backdrop before attendees arrive.
@@ -492,15 +549,164 @@ Krish: Excellent. Decision: The keynote stage locks at 9:00 AM for live rehearsa
       summary: "Final pre-flight check for keynote audio, live streaming cameras, backup fiber ethernet, and sponsor branding.",
     });
 
-    console.log(`✓ Created 3 meetings:`);
-    console.log(`   1. [COMPLETED + AI ANALYSIS] ${meeting1.title} (${eventOngoing.name})`);
-    console.log(`   2. [COMPLETED + AI ANALYSIS] ${meeting2.title} (${eventPending.name})`);
-    console.log(`   3. [PENDING LIVE ANALYSIS]   ${meeting3.title} (${eventOngoing.name})`);
+    // --- EVENT 1 (PENDING): Meeting 4 (Pending Live Testing) ---
+    const meeting4Transcript = `Krish: Opening meeting for Drone Pilot Transponder registration.
+Lucas Gray: We have 28 pilots confirmed. Each pilot will receive a dedicated 5.8 GHz analog channel.
+Maya Lin: Pit tables are numbered from 1 to 32. Battery charging station will open at 8:30 AM.
+Chloe Bennett: Pilots must sign the liability waiver before receiving transmitter frequency tags.
+Krish: Decision: Pilot briefing starts at 9:15 AM sharp in the main pavilion.`;
+
+    const meeting4 = await Meeting.create({
+      title: "FPV Pilot Transponder & Frequency Allocation Sync",
+      eventId: eventPending._id,
+      date: daysOffset(3),
+      processedByAI: false, // PENDING LIVE AI ANALYSIS
+      participants: allParticipants,
+      transcript: meeting4Transcript,
+      summary: "Coordination of pilot frequency bands, transmitter safety tags, and pit lane power allocation.",
+    });
+
+    // --- EVENT 3 (COMPLETED): Meeting 5 (Completed with AI Analysis) ---
+    const meeting5Transcript = `Krish: Welcome to the post-event retrospective for Winter Robotics Showcase 2025.
+Aisha Patel: All 4K stream recordings and keynote videos have been safely archived to the university media NAS. Total storage footprint is 118 GB.
+Vikram Sethi: We audited all vendor invoices for audio rental and stage spotlights. Total expenses came in 5% under allocated budget.
+Priya Nair: Judges submitted high praise for student robot manipulators. 8 industry certificates have been dispatched via email.
+Samuel Torres: All display easels and stage lighting have been inspected with zero physical damage. Vendor deposit has been refunded in full.
+Krish: Decision: Showcase archive closed with zero outstanding liabilities. Commendation to all volunteers.`;
+
+    const meeting5 = await Meeting.create({
+      title: "Post-Event Retrospective & Budget Reconciliation",
+      eventId: eventCompleted._id,
+      date: daysOffset(-25),
+      processedByAI: true,
+      participants: allParticipants,
+      transcript: meeting5Transcript,
+      summary: "Financial debrief, equipment return audit, and media archiving following the successful Winter Robotics Showcase.",
+    });
+
+    await AIAnalysis.create({
+      meetingId: meeting5._id,
+      eventId: eventCompleted._id,
+      summary: "Completed financial reconciliation with 5% budget surplus, successfully archived 118 GB of 4K footage to NAS, and confirmed 100% equipment return with zero damage.",
+      decisions: [
+        "Archived all raw 4K stream footage and keynote video to NAS storage",
+        "Approved surplus budget rollover to upcoming spring hackathon hardware fund",
+        "Officially closed exhibition register with full refund of venue deposit"
+      ],
+      tasks: [
+        { title: "Publish showcase highlight reel to club YouTube channel", ownerId: getUserByName("Aisha Patel")._id, priority: "medium", deadline: daysOffset(-20) },
+        { title: "Submit finalized financial reconciliation to student council", ownerId: getUserByName("Vikram Sethi")._id, priority: "high", deadline: daysOffset(-18) }
+      ],
+      risks: []
+    });
+
+    console.log(`✓ Created 5 meetings across all 3 events (3 completed with AI analysis, 2 pending live analysis).`);
 
     // =========================================================================
-    // 10. Create Grounded Knowledge Documents & Chunks (RAG)
+    // 10. Upload 3 Documents of Transcripts + 1 Policy Document (with RAG Chunks)
     // =========================================================================
-    const doc = await Document.create({
+
+    // Document 1: Hackathon Sprint Planning Transcript
+    const doc1 = await Document.create({
+      clubId: club._id,
+      eventId: eventOngoing._id,
+      title: "Meeting Transcript — Sprint Planning & Operations Sync",
+      fileName: "Sprint_Planning_Operations_Sync_Transcript.txt",
+      fileType: "txt",
+      content: meeting1Transcript,
+      processed: true,
+      uploadedBy: organizerUser._id,
+    });
+
+    await DocumentChunk.create([
+      {
+        documentId: doc1._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc1.fileName,
+        chunkIndex: 0,
+        text: `TRANSCRIPT - SPRINT PLANNING & RISK ASSESSMENT SYNC (AI Hackathon 2026)\n\n${meeting1Transcript}\n\nKey Decisions: Stage sound check scheduled for Friday 2 PM. NFC badges to arrive Thursday 10 AM. Wi-Fi repeaters to be deployed in Hall B by Saturday morning.`,
+        metadata: { title: doc1.title },
+      },
+      {
+        documentId: doc1._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc1.fileName,
+        chunkIndex: 1,
+        text: `OPERATIONAL ACTIONS FROM SPRINT SYNC:\n- Test stage PA system and 4 lapel microphones: Marcus Vance (High Priority)\n- Verify dietary vegan and gluten-free meals with catering: Elena Rostova (High Priority)\n- Deploy high-gain Wi-Fi repeater bridge in Hall B: David Kim (Critical Priority)\n- Flagged Risk: Unsigned Catering Contract awaiting procurement approval.`,
+        metadata: { title: doc1.title },
+      },
+    ]);
+
+    // Document 2: Drone Racing Arena Safety Transcript
+    const doc2 = await Document.create({
+      clubId: club._id,
+      eventId: eventPending._id,
+      title: "Meeting Transcript — Drone Arena Safety & Netting Briefing",
+      fileName: "Drone_Arena_Safety_and_Netting_Transcript.txt",
+      fileType: "txt",
+      content: meeting2Transcript,
+      processed: true,
+      uploadedBy: organizerUser._id,
+    });
+
+    await DocumentChunk.create([
+      {
+        documentId: doc2._id,
+        clubId: club._id,
+        eventId: eventPending._id,
+        fileName: doc2.fileName,
+        chunkIndex: 0,
+        text: `TRANSCRIPT - ARENA SAFETY PERIMETER & NETTING INSPECTION (Drone Racing Cup 2026)\n\n${meeting2Transcript}\n\nKey Safety Rules: 10-meter ceiling netting anchored to east truss. LiPo battery charging restricted exclusively to fire-safe lockers with sand buckets and Class-D extinguishers.`,
+        metadata: { title: doc2.title },
+      },
+      {
+        documentId: doc2._id,
+        clubId: club._id,
+        eventId: eventPending._id,
+        fileName: doc2.fileName,
+        chunkIndex: 1,
+        text: `DRONE RACE SAFETY DECISIONS:\n- Mandatory radio fail-safe kill switch test required before any drone can arm motors.\n- 5.8 GHz video transponder frequencies must be verified across Raceband channels.\n- Safety leads: Samuel Torres (Ceiling Netting Anchor) and Maya Lin (LiPo Charging Fire Station).`,
+        metadata: { title: doc2.title },
+      },
+    ]);
+
+    // Document 3: Keynote AV Tech Check Transcript
+    const doc3 = await Document.create({
+      clubId: club._id,
+      eventId: eventOngoing._id,
+      title: "Meeting Transcript — Final Stage AV & Keynote Tech Check",
+      fileName: "Stage_AV_and_Keynote_Tech_Check_Transcript.txt",
+      fileType: "txt",
+      content: meeting3Transcript,
+      processed: true,
+      uploadedBy: organizerUser._id,
+    });
+
+    await DocumentChunk.create([
+      {
+        documentId: doc3._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc3.fileName,
+        chunkIndex: 0,
+        text: `TRANSCRIPT - FINAL STAGE AV & SPONSOR KEYNOTE TECH CHECK (AI Hackathon 2026)\n\n${meeting3Transcript}\n\nTechnical Details: Wireless lapel mics confirmed interference-free for 12 hours. Backup fiber ethernet in Hall B running with 4ms latency to Cloudflare edge.`,
+        metadata: { title: doc3.title },
+      },
+      {
+        documentId: doc3._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc3.fileName,
+        chunkIndex: 1,
+        text: `KEYNOTE STAGE PROTOCOLS:\n- Keynote stage locks at 9:00 AM for speaker rehearsals.\n- Sponsor banners from Google and NVIDIA must be photographed by Aisha Patel by 8:00 AM.\n- All volunteers and committee members must visibly wear NFC credential badges.`,
+        metadata: { title: doc3.title },
+      },
+    ]);
+
+    // Document 4: Venue Safety Guidelines PDF
+    const doc4 = await Document.create({
       clubId: club._id,
       eventId: eventOngoing._id,
       title: "Venue Safety and Operations Guidelines 2026",
@@ -512,21 +718,26 @@ Krish: Excellent. Decision: The keynote stage locks at 9:00 AM for live rehearsa
 
     await DocumentChunk.create([
       {
-        documentId: doc._id,
+        documentId: doc4._id,
         clubId: club._id,
         eventId: eventOngoing._id,
+        fileName: doc4.fileName,
         chunkIndex: 0,
         text: "Grand Campus Hall Building B Operations Policy: All electrical cables crossing pedestrian walkways must be covered with rubber cable ramps. Main stage sound levels must remain strictly below 85 decibels after 10:00 PM per campus noise curfew regulations. Emergency exit doors must remain unobstructed by tables or displays at all times.",
+        metadata: { title: doc4.title },
       },
       {
-        documentId: doc._id,
+        documentId: doc4._id,
         clubId: club._id,
         eventId: eventOngoing._id,
+        fileName: doc4.fileName,
         chunkIndex: 1,
         text: "Catering & Dietary Compliance: Hot food catering deliveries must be inspected for temperature compliance upon arrival. Vegan, vegetarian, halal, and gluten-free meals must be labeled and separated at the serving tables. Food waste must be disposed of in compost bins located outside the service entrance.",
+        metadata: { title: doc4.title },
       },
     ]);
-    console.log(`✓ Created event reference documents and RAG knowledge chunks.`);
+
+    console.log(`✓ Uploaded 3 meeting transcript documents + 1 policy document with indexed RAG chunks.`);
 
     console.log("\n==========================================================");
     console.log("             SEED DATA GENERATION COMPLETE                ");
