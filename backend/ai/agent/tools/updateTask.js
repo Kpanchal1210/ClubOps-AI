@@ -1,30 +1,6 @@
 const Task = require("../../../models/Task");
 const Event = require("../../../models/Event");
 const Club = require("../../../models/Club");
-const User = require("../../../models/User");
-
-
-const resolveAssignee = async (assigneeName) => {
-
-    if (!assigneeName) {
-        return undefined;
-    }
-
-    const user = await User.findOne({
-        name: {
-            $regex: assigneeName,
-            $options: "i"
-        }
-    });
-
-    if (!user) {
-        throw new Error(
-            `User "${assigneeName}" not found`
-        );
-    }
-
-    return user._id;
-};
 
 
 const convertDeadline = (deadline) => {
@@ -33,30 +9,24 @@ const convertDeadline = (deadline) => {
         return undefined;
     }
 
-    // Already a Date
     if (deadline instanceof Date) {
         return deadline;
     }
 
-    // Handle natural language deadline
     if (typeof deadline === "string") {
 
         const value = deadline.toLowerCase().trim();
 
-        // Tomorrow
         if (value === "tomorrow") {
 
             const date = new Date();
 
             date.setDate(date.getDate() + 1);
-
-            // Set deadline to 11:59 PM tomorrow
             date.setHours(23, 59, 59, 999);
 
             return date;
         }
 
-        // Today
         if (value === "today") {
 
             const date = new Date();
@@ -66,7 +36,6 @@ const convertDeadline = (deadline) => {
             return date;
         }
 
-        // Try normal date strings
         const parsedDate = new Date(deadline);
 
         if (!isNaN(parsedDate.getTime())) {
@@ -80,13 +49,11 @@ const convertDeadline = (deadline) => {
 };
 
 
-const createTaskTool = async ({
+const updateTaskTool = async ({
     eventId,
     userId,
-    title,
-    description,
-    assigneeName,
-    assignedTo,
+    taskIdentifier,
+    status,
     priority,
     deadline
 }) => {
@@ -101,12 +68,14 @@ const createTaskTool = async ({
         throw new Error("userId is required");
     }
 
-    if (!title) {
-        throw new Error("Task title is required");
+    if (!taskIdentifier) {
+        throw new Error(
+            "Task identifier is required"
+        );
     }
 
 
-    // 2. Check event exists
+    // 2. Check event
 
     const event = await Event.findById(eventId);
 
@@ -115,7 +84,7 @@ const createTaskTool = async ({
     }
 
 
-    // 3. Check club exists
+    // 3. Check club
 
     const club = await Club.findById(event.clubId);
 
@@ -124,7 +93,7 @@ const createTaskTool = async ({
     }
 
 
-    // 4. Check user has access to the event's club
+    // 4. Check user access
 
     const isMember = club.members.some(
         member => member.toString() === userId.toString()
@@ -137,32 +106,58 @@ const createTaskTool = async ({
     }
 
 
-    // 5. Convert deadline
+    // 5. Find task
 
-    const convertedDeadline = convertDeadline(deadline);
-
-    const resolvedAssignee = assignedTo ||
-        await resolveAssignee(assigneeName);
-
-    // 6. Create task
-
-    const task = await Task.create({
+    const tasks = await Task.find({
         eventId,
-        title,
-        description,
-        assignedTo,
-        createdBy: userId,
-        priority: priority || "medium",
-        deadline: convertedDeadline,
-        source: "ai_agent",
-        aiGenerated: true
+        title: {
+            $regex: taskIdentifier,
+            $options: "i"
+        }
     });
 
 
-    // 7. Return created task
+    if (tasks.length === 0) {
+        throw new Error(
+            `Task "${taskIdentifier}" not found`
+        );
+    }
+
+
+    if (tasks.length > 1) {
+        throw new Error(
+            `Multiple tasks found matching "${taskIdentifier}". Please be more specific.`
+        );
+    }
+
+
+    const task = tasks[0];
+
+
+    // 6. Update fields
+
+    if (status !== undefined && status !== null) {
+        task.status = status;
+    }
+
+    if (priority !== undefined && priority !== null) {
+        task.priority = priority;
+    }
+
+    if (deadline !== undefined && deadline !== null) {
+        task.deadline = convertDeadline(deadline);
+    }
+
+
+    // 7. Save
+
+    await task.save();
+
+
+    // 8. Return updated task
 
     return task;
 };
 
 
-module.exports = createTaskTool;
+module.exports = updateTaskTool;
