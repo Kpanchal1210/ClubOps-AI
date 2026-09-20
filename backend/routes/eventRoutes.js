@@ -6,7 +6,8 @@ const {
     getMyEvents,
     getEventById,
     updateEvent,
-    deleteEvent
+    deleteEvent,
+    planEventWithAI
 } = require("../controllers/eventController");
 
 const {
@@ -39,6 +40,7 @@ const router = express.Router();
 // --------------------------------------------------
 
 router.post("/", protect, createEvent);
+router.post("/ai-plan", protect, planEventWithAI);
 
 router.get("/", protect, getMyEvents);
 

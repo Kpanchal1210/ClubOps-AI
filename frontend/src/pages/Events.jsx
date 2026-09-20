@@ -53,6 +53,56 @@ export default function Events() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // AI Planner modal
+  const [showAIPlanner, setShowAIPlanner] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiPlanResult, setAiPlanResult] = useState(null);
+  const [aiPlanningLoading, setAiPlanningLoading] = useState(false);
+  const [aiPlanError, setAiPlanError] = useState("");
+
+  /* ── AI Event Planning ──────────────────────── */
+  const handleGeneratePlan = async (promptToUse) => {
+    const text = typeof promptToUse === "string" ? promptToUse : aiPrompt;
+    if (!text || !text.trim()) return;
+    setAiPlanningLoading(true);
+    setAiPlanError("");
+    try {
+      const res = await eventService.generateAIEventPlan({ prompt: text });
+      const plan = res?.data?.plan || res?.plan || res?.data;
+      setAiPlanResult(plan);
+    } catch (err) {
+      setAiPlanError(err.response?.data?.message || err.message || "Failed to generate AI event plan.");
+    } finally {
+      setAiPlanningLoading(false);
+    }
+  };
+
+  const handleCreateFromPlan = async () => {
+    if (!aiPlanResult) return;
+    setAiPlanningLoading(true);
+    setAiPlanError("");
+    try {
+      const res = await eventService.generateAIEventPlan({
+        prompt: aiPrompt || aiPlanResult.name,
+        createImmediately: true
+      });
+      const created = res?.data?.event;
+      if (created) {
+        setEvents((prev) => [created, ...prev]);
+        safeStorage.removeItem("events_cache");
+        const newId = created._id || created.id;
+        setCurrentEventId(newId);
+        refreshEvents();
+        setShowAIPlanner(false);
+        navigate(`/events/${newId}`);
+      }
+    } catch (err) {
+      setAiPlanError(err.response?.data?.message || err.message || "Failed to create planned event.");
+    } finally {
+      setAiPlanningLoading(false);
+    }
+  };
+
   /* ── Load events ──────────────────────────── */
   const loadEvents = async () => {
     if (events.length === 0) setLoading(true);
@@ -161,7 +211,11 @@ export default function Events() {
           <p>Create, manage, and coordinate all operations across club events.</p>
         </div>
 
-        <div className="page-header-actions">
+        <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button className="secondary-button" onClick={() => setShowAIPlanner(true)}>
+            <Sparkles size={15} style={{ color: "var(--color-primary)" }} />
+            <span>AI Event Planner</span>
+          </button>
           <button className="primary-button" onClick={() => setShowForm(true)}>
             <Plus size={15} />
             <span>Create Event</span>
@@ -251,6 +305,165 @@ export default function Events() {
           </button>
         </div>
       </div>
+
+      {/* ── AI Event Planner Modal ── */}
+      {showAIPlanner && (
+        <div className="modal-backdrop" onClick={() => setShowAIPlanner(false)}>
+          <div className="modal-container" style={{ maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(99, 102, 241, 0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Sparkles size={18} style={{ color: "var(--color-primary)" }} />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 17 }}>AI-Assisted Event Planner</h2>
+                  <small style={{ color: "var(--text-muted)" }}>Generate a production-ready event plan, timeline & milestone tasks</small>
+                </div>
+              </div>
+              <button className="modal-close-btn" onClick={() => setShowAIPlanner(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ maxHeight: "75vh", overflowY: "auto" }}>
+              {aiPlanError && <div className="error-box">{aiPlanError}</div>}
+
+              <label>Event Concept & Scope</label>
+              <textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="e.g. 2-day Autonomous Robotics Hackathon with industry mentors, hardware demos, and stage keynote presentations"
+                rows={3}
+                style={{ width: "100%", marginBottom: 10 }}
+              />
+
+              {/* Sample Quick Prompts */}
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 14 }}>
+                {[
+                  "Autonomous Drone Racing Cup",
+                  "AI & Local LLM Hackathon",
+                  "Campus Tech & Robotics Showcase",
+                  "Industry Career & Mentor Summit"
+                ].map((sample, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="filter-pill"
+                    style={{ fontSize: 11, padding: "3px 8px" }}
+                    onClick={() => {
+                      setAiPrompt(sample);
+                      handleGeneratePlan(sample);
+                    }}
+                  >
+                    + {sample}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className="primary-button button-sm"
+                  onClick={() => handleGeneratePlan()}
+                  disabled={aiPlanningLoading || !aiPrompt.trim()}
+                >
+                  <Sparkles size={13} />
+                  <span>{aiPlanningLoading ? "Generating Plan with AI..." : "Generate Event Plan"}</span>
+                </button>
+              </div>
+
+              {/* Generated Plan Details */}
+              {aiPlanResult && (
+                <div style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)", padding: "16px", marginTop: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                    <span className="badge ai-badge" style={{ fontSize: 10.5 }}>
+                      <Sparkles size={11} /> AI Blueprint Generated
+                    </span>
+                    <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                      {aiPlanResult.durationDays || 2} Days • {aiPlanResult.expectedParticipants || 100} Attendees
+                    </span>
+                  </div>
+
+                  <h3 style={{ margin: "4px 0 6px 0", fontSize: 16 }}>{aiPlanResult.name}</h3>
+                  <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 12px 0" }}>
+                    {aiPlanResult.description}
+                  </p>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12, marginBottom: 14 }}>
+                    <div>
+                      <strong style={{ color: "var(--text-muted)", display: "block" }}>RECOMMENDED VENUE</strong>
+                      <span style={{ color: "var(--text-primary)" }}>{aiPlanResult.venue || "Campus Main Hall"}</span>
+                    </div>
+                    <div>
+                      <strong style={{ color: "var(--text-muted)", display: "block" }}>VOLUNTEER ROLES</strong>
+                      <span style={{ color: "var(--text-primary)" }}>{aiPlanResult.expectedVolunteers || 10} Volunteers Recommended</span>
+                    </div>
+                  </div>
+
+                  {/* Milestone Tasks */}
+                  {aiPlanResult.suggestedTasks?.length > 0 && (
+                    <div style={{ marginTop: 12 }}>
+                      <strong style={{ fontSize: 12, color: "var(--text-muted)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
+                        Suggested Milestone Tasks ({aiPlanResult.suggestedTasks.length})
+                      </strong>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {aiPlanResult.suggestedTasks.map((t, tidx) => (
+                          <div key={tidx} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-surface)", padding: "8px 10px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", fontSize: 12.5 }}>
+                            <span>{t.title}</span>
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <span className={`badge ${t.priority || "medium"}`} style={{ fontSize: 9.5 }}>
+                                {t.priority || "medium"}
+                              </span>
+                              {t.targetTeam && (
+                                <span className="badge" style={{ fontSize: 9.5 }}>
+                                  {t.targetTeam}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+                    <button
+                      type="button"
+                      className="secondary-button button-sm"
+                      onClick={() => {
+                        setForm({
+                          name: aiPlanResult.name || "",
+                          description: aiPlanResult.description || "",
+                          venue: aiPlanResult.venue || "",
+                          startDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 16),
+                          endDate: new Date(Date.now() + 16 * 86400000).toISOString().slice(0, 16),
+                          expectedParticipants: String(aiPlanResult.expectedParticipants || 100),
+                          expectedVolunteers: String(aiPlanResult.expectedVolunteers || 10),
+                          status: "planning"
+                        });
+                        setShowAIPlanner(false);
+                        setShowForm(true);
+                      }}
+                    >
+                      Use in Create Form
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-button button-sm"
+                      onClick={handleCreateFromPlan}
+                      disabled={aiPlanningLoading}
+                    >
+                      <Plus size={13} />
+                      <span>{aiPlanningLoading ? "Creating Event..." : "Deploy Event & Tasks"}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Create Event Modal ── */}
       {showForm && (

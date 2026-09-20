@@ -485,6 +485,130 @@ ${transcript}
     return fallbackAnalyzeMeetingTranscript(transcript, roster);
 };
 
+/**
+ * AI-assisted Event Planning Generator
+ * Generates an end-to-end event plan with title, venue, timeline, milestone tasks, and volunteer role suggestions.
+ */
+const generateEventPlan = async (eventIdea, clubName = "Student Club") => {
+    if (!eventIdea || !eventIdea.trim()) {
+        throw new Error("Event idea prompt is required");
+    }
+
+    const aiPrompt = `
+You are an expert collegiate event director and operations planner for "${clubName}".
+Create a comprehensive, production-ready event execution plan based on the following event idea:
+"${eventIdea}"
+
+Return strictly valid JSON with this structure:
+{
+  "name": "Concise, exciting event title",
+  "description": "2-3 sentence executive description of the event scope, theme, and goals.",
+  "venue": "Recommended campus venue or building (e.g. Grand Campus Hall, Room 108, Engineering Pavilion)",
+  "durationDays": 2,
+  "expectedParticipants": 150,
+  "expectedVolunteers": 12,
+  "recommendedTimeline": [
+    { "phase": "T-4 Weeks: Logistics & Sponsorships", "focus": "Venue booking, corporate sponsor outreach, AV equipment contracts" },
+    { "phase": "T-1 Week: Technical Readiness", "focus": "PA line checks, Wi-Fi repeaters, dietary surveys, volunteer briefing" },
+    { "phase": "Event Day: Execution", "focus": "Live check-in, keynote sessions, hardware lab operations, catering distribution" },
+    { "phase": "Post-Event: Wrap-up", "focus": "Equipment return, damage deposit release, retrospective meeting" }
+  ],
+  "suggestedTasks": [
+    {
+      "title": "Action-oriented task title (max 70 chars)",
+      "description": "Specific deliverable instructions",
+      "priority": "critical",
+      "targetTeam": "Stage & AV"
+    }
+  ],
+  "suggestedVolunteerRoles": [
+    { "team": "Stage & AV", "count": 3, "responsibilities": "Projectors, lapel microphones, keynote presentations" },
+    { "team": "Logistics & Security", "count": 4, "responsibilities": "Loading bay delivery, crowd flow, safety perimeter" },
+    { "team": "Hospitality & Catering", "count": 3, "responsibilities": "Dietary meal boxes, speaker reception" },
+    { "team": "Registration & Helpdesk", "count": 2, "responsibilities": "NFC badge distribution, attendee check-in" }
+  ]
+}
+`;
+
+    const client = getGenAI();
+    if (client) {
+        const candidateModels = [
+            process.env.GEMINI_MODEL,
+            "gemini-3.6-flash",
+            "gemini-2.5-flash",
+            "gemini-1.5-flash"
+        ].filter(Boolean);
+
+        for (const modelName of candidateModels) {
+            try {
+                const model = client.getGenerativeModel({ model: modelName });
+                const result = await model.generateContent(aiPrompt);
+                const text = result.response.text();
+                const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
+                const parsed = JSON.parse(cleaned);
+                if (parsed && parsed.name) {
+                    return parsed;
+                }
+            } catch (err) {
+                console.warn(`Gemini event planning failed with ${modelName}:`, err.message);
+            }
+        }
+    }
+
+    // Intelligent rule-based fallback event plan
+    const trimmed = eventIdea.trim();
+    const isHackathon = /hackathon|code|ai|software/i.test(trimmed);
+    const isRobotics = /robot|drone|hardware|expo/i.test(trimmed);
+
+    return {
+        name: trimmed.length < 50 ? trimmed : trimmed.slice(0, 48) + "...",
+        description: `Organized by ${clubName}. High-impact experiential event bringing together students, faculty mentors, and industry sponsors for hands-on collaborative problem solving.`,
+        venue: isRobotics ? "Engineering Pavilion — High-Bay Arena" : isHackathon ? "Grand Campus Hall, Building B" : "Student Union Main Auditorium",
+        durationDays: isHackathon || isRobotics ? 2 : 1,
+        expectedParticipants: 120,
+        expectedVolunteers: 10,
+        recommendedTimeline: [
+            { phase: "Phase 1: Pre-Event Logistics (T-3 Weeks)", focus: "Secure venue reservation, publish registration form, review equipment inventory." },
+            { phase: "Phase 2: Technical & AV Line Checks (T-3 Days)", focus: "Calibrate projectors, test wireless mics, stage wash lights, and backup network." },
+            { phase: "Phase 3: Live Event Execution", focus: "Run attendee check-in, mentor sessions, meal distribution, and judge presentations." },
+            { phase: "Phase 4: Post-Event Wrap-up", focus: "Collect badges, return rental AV gear, and conduct committee retrospective." }
+        ],
+        suggestedTasks: [
+            {
+                title: "Calibrate main auditorium 4K projectors & lapel mics",
+                description: "Perform 12-hour battery check on wireless packs and verify HDMI switcher line feeds.",
+                priority: "high",
+                targetTeam: "Stage & AV"
+            },
+            {
+                title: "Inspect venue safety perimeter and fire egress doors",
+                description: "Ensure all loading bays and emergency pathways remain unobstructed by sponsor booths.",
+                priority: "critical",
+                targetTeam: "Logistics & Security"
+            },
+            {
+                title: "Finalize dietary meal numbers and vegan lunch boxes",
+                description: "Confirm special dietary orders with campus catering vendor 48 hours prior to event.",
+                priority: "medium",
+                targetTeam: "Hospitality"
+            },
+            {
+                title: "Program NFC badges and organize check-in welcome kits",
+                description: "Batch-encode student NFC credentials and arrange registration lanyards at Entry Desk A.",
+                priority: "medium",
+                targetTeam: "Registration"
+            }
+        ],
+        suggestedVolunteerRoles: [
+            { team: "Stage & AV", count: 3, responsibilities: "Keynote presentation switching, stage audio line tests" },
+            { team: "Logistics & Security", count: 3, responsibilities: "Loading bay sign-off, safety perimeter checks" },
+            { team: "Hospitality", count: 2, responsibilities: "Catering reception, speaker green room setup" },
+            { team: "Registration", count: 2, responsibilities: "Badge encoding, check-in kiosk coordination" }
+        ]
+    };
+};
+
 module.exports = {
-    analyzeMeetingTranscript
+    analyzeMeetingTranscript,
+    generateEventPlan
 };

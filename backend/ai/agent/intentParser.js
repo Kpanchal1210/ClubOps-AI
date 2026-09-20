@@ -111,6 +111,16 @@ function fallbackParseIntent(command) {
         };
     }
 
+    // 6. Plan Event
+    if (lower.startsWith("plan ") || lower.includes("plan an event") || lower.includes("plan a hackathon") || lower.includes("plan event") || lower.includes("event plan")) {
+        return {
+            intent: "PLAN_EVENT",
+            parameters: {
+                prompt: command.replace(/^(please\s+)?(can you\s+)?plan\s+(an?\s+)?/i, "") || command
+            }
+        };
+    }
+
     return {
         intent: "QUERY_KNOWLEDGE",
         parameters: { query: command }
@@ -145,6 +155,7 @@ UPDATE_TASK
 CREATE_RISK
 SEND_NOTIFICATION
 QUERY_KNOWLEDGE
+PLAN_EVENT
 GREETING
 UNKNOWN
 

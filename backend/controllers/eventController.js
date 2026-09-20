@@ -1,6 +1,8 @@
 const Event = require("../models/Event");
 const Club = require("../models/Club");
 const User = require("../models/User");
+const Task = require("../models/Task");
+const { generateEventPlan } = require("../services/aiService");
 
 // ======================================================
 // CREATE EVENT
@@ -457,11 +459,104 @@ const getMyEvents = async (req, res) => {
 };
 
 
+// ======================================================
+// AI-ASSISTED EVENT PLANNING
+// POST /api/events/ai-plan
+// ======================================================
+const planEventWithAI = async (req, res) => {
+    try {
+        const { prompt, clubId, createImmediately } = req.body;
+
+        if (!prompt || !prompt.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Event planning prompt is required"
+            });
+        }
+
+        let club = null;
+        if (clubId) {
+            club = await Club.findById(clubId);
+        } else {
+            const user = await User.findById(req.user.userId);
+            if (user?.clubId) {
+                club = await Club.findById(user.clubId);
+            } else {
+                club = await Club.findOne({
+                    $or: [{ adminId: req.user.userId }, { members: req.user.userId }]
+                });
+            }
+        }
+
+        const plan = await generateEventPlan(prompt, club?.name || "Student Operations Club");
+
+        // If user requested to immediately create the planned event with its tasks
+        let createdEvent = null;
+        let createdTasks = [];
+
+        if (createImmediately && club) {
+            const now = new Date();
+            const start = new Date(now.getTime() + 14 * 86400000); // 2 weeks out
+            const end = new Date(start.getTime() + (plan.durationDays || 2) * 86400000);
+
+            createdEvent = await Event.create({
+                clubId: club._id,
+                name: plan.name,
+                description: plan.description,
+                venue: plan.venue,
+                startDate: start,
+                endDate: end,
+                expectedParticipants: plan.expectedParticipants || 100,
+                expectedVolunteers: plan.expectedVolunteers || 10,
+                createdBy: req.user.userId,
+                status: "planning"
+            });
+
+            if (Array.isArray(plan.suggestedTasks)) {
+                for (const st of plan.suggestedTasks) {
+                    const task = await Task.create({
+                        eventId: createdEvent._id,
+                        title: st.title,
+                        description: st.description || "",
+                        priority: st.priority || "medium",
+                        status: "pending",
+                        deadline: new Date(start.getTime() - 2 * 86400000),
+                        createdBy: req.user.userId,
+                        source: "ai_agent",
+                        aiGenerated: true
+                    });
+                    createdTasks.push(task);
+                }
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "AI Event Plan generated successfully",
+            data: {
+                plan,
+                event: createdEvent,
+                tasks: createdTasks
+            }
+        });
+
+    } catch (error) {
+        console.error("AI Event planning error:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to generate AI event plan",
+            error: error.message
+        });
+    }
+};
+
+
 module.exports = {
     createEvent,
     getClubEvents,
     getEventById,
     updateEvent,
     deleteEvent,
-    getMyEvents
+    getMyEvents,
+    planEventWithAI
 };

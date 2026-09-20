@@ -6,6 +6,11 @@ const eventService = {
     return response.data;
   },
 
+  generateAIEventPlan: async (data) => {
+    const response = await api.post("/events/ai-plan", data);
+    return response.data;
+  },
+
   getEvent: async (id) => {
     const response = await api.get(`/events/${id}`);
     return response.data;
