@@ -18,6 +18,7 @@ import {
 
 import eventService from "../services/eventService";
 import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 
@@ -34,6 +35,7 @@ const EMPTY_FORM = {
 
 export default function Events() {
   const navigate = useNavigate();
+  const { setCurrentEventId, refreshEvents } = useEvent();
 
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,7 @@ export default function Events() {
 
   /* ── Open event ───────────────────────────── */
   const handleOpen = (id) => {
-    safeStorage.setItem("eventId", id);
+    setCurrentEventId(id);
     navigate(`/events/${id}`);
   };
 
@@ -93,7 +95,9 @@ export default function Events() {
       const created = result?.data?.event || result?.data || result;
       if (created) {
         setEvents((prev) => [created, ...prev]);
-        safeStorage.setItem("eventId", created._id || created.id);
+        const newId = created._id || created.id;
+        setCurrentEventId(newId);
+        refreshEvents();
       }
       setShowForm(false);
       setForm(EMPTY_FORM);

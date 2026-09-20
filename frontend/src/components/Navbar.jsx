@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   LogOut,
   Bell,
@@ -8,35 +8,23 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import eventService from "../services/eventService";
+import { useEvent } from "../context/EventContext";
 import notificationService from "../services/notificationService";
-import { safeStorage } from "../utils/storage";
 
 export default function Navbar({ onMenuToggle }) {
   const { user, club, logout } = useAuth();
+  const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [eventMenuOpen, setEventMenuOpen] = useState(false);
-  const [events, setEvents] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
   const menuRef = useRef(null);
   const eventMenuRef = useRef(null);
 
-  const eventId = safeStorage.getItem("eventId");
-
   useEffect(() => {
-    eventService.getAllEvents()
-      .then((res) => {
-        const list = res?.data?.events || res?.data || res || [];
-        if (Array.isArray(list)) {
-          setEvents(list);
-          if (!eventId && list.length > 0) {
-            safeStorage.setItem("eventId", list[0]._id || list[0].id);
-          }
-        }
-      })
-      .catch(() => {});
-
     notificationService.getNotifications()
       .then((res) => {
         const notifs = res?.data || res || [];
@@ -45,9 +33,9 @@ export default function Navbar({ onMenuToggle }) {
         }
       })
       .catch(() => {});
-  }, [eventId]);
+  }, []);
 
-  const activeEvent = events.find((e) => (e._id || e.id) === eventId) || events[0];
+  const activeEvent = currentEvent || events.find((e) => (e._id || e.id) === currentEventId) || events[0];
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -67,9 +55,24 @@ export default function Navbar({ onMenuToggle }) {
     : "CO";
 
   const handleSelectEvent = (id) => {
-    safeStorage.setItem("eventId", id);
+    setCurrentEventId(id);
     setEventMenuOpen(false);
-    navigate(0); // Refresh context
+
+    // Update query parameters on contextual pages
+    const pathname = location.pathname;
+    if (pathname.startsWith("/events/")) {
+      navigate(`/events/${id}`);
+    } else if (pathname === "/tasks") {
+      navigate(`/tasks?eventId=${id}`);
+    } else if (pathname === "/risks") {
+      navigate(`/risks?eventId=${id}`);
+    } else if (pathname === "/volunteers") {
+      navigate(`/volunteers?eventId=${id}`);
+    } else if (pathname === "/agent") {
+      navigate(`/agent?eventId=${id}`);
+    } else if (pathname === "/dashboard") {
+      navigate(`/dashboard?eventId=${id}`);
+    }
   };
 
   const clubName = club?.name ? club.name.toUpperCase() : "CLUBOPS";
@@ -114,16 +117,20 @@ export default function Navbar({ onMenuToggle }) {
             <div className="navbar-event-dropdown">
               <div className="event-dropdown-header">SWITCH EVENT CONTEXT</div>
               {events.length > 0 ? (
-                events.map((evt) => (
-                  <div
-                    key={evt.id || evt._id}
-                    onClick={() => handleSelectEvent(evt.id || evt._id)}
-                    className={`event-dropdown-item ${(evt.id || evt._id) === eventId ? "active" : ""}`}
-                  >
-                    <span>{evt.name}</span>
-                    <span className="event-status-tag">{evt.status}</span>
-                  </div>
-                ))
+                events.map((evt) => {
+                  const evtId = evt._id || evt.id;
+                  const isSelected = evtId === currentEventId;
+                  return (
+                    <div
+                      key={evtId}
+                      onClick={() => handleSelectEvent(evtId)}
+                      className={`event-dropdown-item ${isSelected ? "active" : ""}`}
+                    >
+                      <span style={{ fontWeight: isSelected ? 700 : 500 }}>{evt.name}</span>
+                      <span className="event-status-tag">{evt.status}</span>
+                    </div>
+                  );
+                })
               ) : (
                 <div className="event-dropdown-item" style={{ opacity: 0.6, cursor: "default" }}>
                   <span>No events created yet</span>
@@ -135,9 +142,13 @@ export default function Navbar({ onMenuToggle }) {
       </div>
 
       <div className="navbar-ref-right">
-        {/* LIVE EVENT Pill */}
-        <Link to="/events" className="live-event-badge">
-          LIVE EVENT
+        {/* LIVE EVENT Link */}
+        <Link
+          to={activeEvent ? `/events/${activeEvent._id || activeEvent.id}` : "/events"}
+          className="live-event-badge"
+          title={`View Workspace for ${activeEvent?.name || "Event"}`}
+        >
+          LIVE EVENT: {activeEvent?.name ? activeEvent.name.slice(0, 18) + (activeEvent.name.length > 18 ? "..." : "") : "ACTIVE"}
         </Link>
 
         {/* Green Status Square */}
@@ -169,7 +180,7 @@ export default function Navbar({ onMenuToggle }) {
             <div className="navbar-user-dropdown">
               <div className="user-dropdown-header">
                 <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 13 }}>
-                  {user?.name || "Karan Panchal"}
+                  {user?.name || "Krish Patel"}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--color-primary)", fontFamily: "var(--font-mono)" }}>
                   ROLE: {user?.role?.toUpperCase() || "ORGANIZER"}
@@ -202,4 +213,4 @@ export default function Navbar({ onMenuToggle }) {
       </div>
     </header>
   );
-}
+}

@@ -16,9 +16,11 @@ import {
 } from "lucide-react";
 
 import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 
 export default function AIResults() {
   const navigate = useNavigate();
+  const { currentEventId } = useEvent();
   const [result, setResult] = useState(() => safeStorage.getJSON("aiResult"));
   const [addedTasks, setAddedTasks] = useState({});
   const [addedRisks, setAddedRisks] = useState({});
@@ -208,7 +210,7 @@ export default function AIResults() {
             <h3 style={{ fontSize: 15, margin: 0, fontWeight: 700 }}>
               Extracted Actionable Tasks ({data?.tasks?.length || 0})
             </h3>
-            <Link to="/tasks" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-primary)" }}>
+            <Link to={currentEventId ? `/tasks?eventId=${currentEventId}` : "/tasks"} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-primary)" }}>
               View in Task Board →
             </Link>
           </div>
@@ -282,7 +284,7 @@ export default function AIResults() {
             <h3 style={{ fontSize: 15, margin: 0, fontWeight: 700 }}>
               Detected Liabilities & Risks ({data?.risks?.length || 0})
             </h3>
-            <Link to="/risks" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-primary)" }}>
+            <Link to={currentEventId ? `/risks?eventId=${currentEventId}` : "/risks"} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-primary)" }}>
               View in Risk Register →
             </Link>
           </div>

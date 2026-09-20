@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   CalendarDays,
   CheckSquare,
@@ -23,7 +23,7 @@ import {
 
 import eventService from "../services/eventService";
 import { useAuth } from "../context/AuthContext";
-import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 
 import StatCard from "../components/StatCard";
 import TaskCard from "../components/TaskCard";
@@ -34,41 +34,37 @@ import ErrorMessage from "../components/ErrorMessage";
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlEventId = searchParams.get("eventId");
+  const { events, currentEventId, currentEvent: activeEventFromCtx, setCurrentEventId } = useEvent();
+  const effectiveEventId = urlEventId || currentEventId;
 
-  const [eventId, setEventId] = useState(
-    () => safeStorage.getItem("eventId")
-  );
   const [dashboard, setDashboard] = useState(null);
-  const [eventsList, setEventsList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [taskFilter, setTaskFilter] = useState("all");
   const [aiCommand, setAiCommand] = useState("");
 
+  // Sync URL param with context if provided
+  useEffect(() => {
+    if (urlEventId && urlEventId !== currentEventId) {
+      setCurrentEventId(urlEventId);
+    }
+  }, [urlEventId, currentEventId, setCurrentEventId]);
+
   const loadDashboard = async () => {
+    if (!effectiveEventId) {
+      setLoading(false);
+      setDashboard(null);
+      return;
+    }
     setLoading(true);
     setError("");
 
     try {
-      const eventsRes = await eventService.getAllEvents();
-      const el = eventsRes?.data?.events || eventsRes?.data || eventsRes || [];
-      const list = Array.isArray(el) ? el : [];
-      setEventsList(list);
-
-      let targetId = eventId;
-      if ((!targetId || !list.some((e) => (e._id || e.id) === targetId)) && list.length > 0) {
-        targetId = list[0]._id || list[0].id;
-        setEventId(targetId);
-        safeStorage.setItem("eventId", targetId);
-      }
-
-      if (targetId) {
-        const dashRes = await eventService.getDashboard(targetId);
-        const d = dashRes?.data || dashRes;
-        if (d) setDashboard(d);
-      } else {
-        setDashboard(null);
-      }
+      const dashRes = await eventService.getDashboard(effectiveEventId);
+      const d = dashRes?.data || dashRes;
+      if (d) setDashboard(d);
     } catch (err) {
       console.warn("Dashboard sync error:", err);
       setError(err.response?.data?.message || err.message || "Failed to load dashboard.");
@@ -79,12 +75,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboard();
-  }, [eventId]);
+  }, [effectiveEventId]);
 
   const handleRunAgent = (e) => {
     e.preventDefault();
     const cmd = aiCommand.trim() || "Create a high priority task for Rahul to contact sponsors tomorrow";
-    navigate(`/agent?prompt=${encodeURIComponent(cmd)}`);
+    navigate(effectiveEventId ? `/agent?eventId=${effectiveEventId}&prompt=${encodeURIComponent(cmd)}` : `/agent?prompt=${encodeURIComponent(cmd)}`);
   };
 
   const formatDateSafe = (dateStr, fallback = "SCHEDULED") => {
@@ -103,10 +99,10 @@ export default function Dashboard() {
   }
 
   const stats = dashboard?.statistics || {};
-  const currentEvent = dashboard?.event || eventsList.find((e) => (e._id || e.id) === eventId) || eventsList[0] || null;
+  const currentEvent = dashboard?.event || activeEventFromCtx || events.find((e) => (e._id || e.id) === effectiveEventId) || events[0] || null;
   const allTasks = dashboard?.tasks || [];
   const allRisks = dashboard?.risks || [];
-  const upcomingEvents = eventsList;
+  const upcomingEvents = events;
 
   // Filter tasks
   const filteredTasks = allTasks.filter((task) => {
@@ -200,7 +196,7 @@ export default function Dashboard() {
         <div className="editorial-side-panels">
           <div className="editorial-actions-row">
             {/* Panel 1: Hot Red Open Task Board Card */}
-            <Link to="/tasks" className="brutal-red-action-card">
+            <Link to={effectiveEventId ? `/tasks?eventId=${effectiveEventId}` : "/tasks"} className="brutal-red-action-card">
               <div className="action-icon-square white-bg">
                 <Gauge size={18} />
               </div>
@@ -212,7 +208,7 @@ export default function Dashboard() {
             </Link>
 
             {/* Panel 2: Off-white Process Meeting Card */}
-            <Link to="/meetings" className="brutal-light-action-card">
+            <Link to={effectiveEventId ? `/meetings?eventId=${effectiveEventId}` : "/meetings"} className="brutal-light-action-card">
               <div className="action-icon-square red-bg">
                 <Sparkles size={18} />
               </div>
@@ -419,7 +415,7 @@ export default function Dashboard() {
                   <TaskCard
                     key={task._id || task.id}
                     task={task}
-                    onClick={() => navigate("/tasks")}
+                    onClick={() => navigate(effectiveEventId ? `/tasks?eventId=${effectiveEventId}` : "/tasks")}
                   />
                 ))}
               </div>
@@ -436,7 +432,7 @@ export default function Dashboard() {
                 <ShieldAlert size={18} style={{ color: "var(--color-danger)" }} />
                 <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, textTransform: "uppercase" }}>Risk Overview</h2>
               </div>
-              <Link to="/risks" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)", display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)" }}>
+              <Link to={effectiveEventId ? `/risks?eventId=${effectiveEventId}` : "/risks"} style={{ fontSize: 13, fontWeight: 700, color: "var(--color-primary)", display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font-mono)" }}>
                 REGISTER <ChevronRight size={13} />
               </Link>
             </div>
@@ -451,7 +447,7 @@ export default function Dashboard() {
                   <RiskCard
                     key={risk._id || risk.id}
                     risk={risk}
-                    onClick={() => navigate("/risks")}
+                    onClick={() => navigate(effectiveEventId ? `/risks?eventId=${effectiveEventId}` : "/risks")}
                   />
                 ))}
               </div>
@@ -477,7 +473,7 @@ export default function Dashboard() {
             </p>
 
             <Link
-              to="/agent"
+              to={effectiveEventId ? `/agent?eventId=${effectiveEventId}` : "/agent"}
               className="primary-button"
               style={{ width: "100%", justifyContent: "center" }}
             >

@@ -36,15 +36,22 @@ import TaskCard from "../components/TaskCard";
 import RiskCard from "../components/RiskCard";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
-
-import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 
 export default function EventDetails() {
   const { id, eventId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { currentEventId: contextEventId, setCurrentEventId } = useEvent();
 
-  const currentEventId = id || eventId || safeStorage.getItem("eventId");
+  const currentEventId = id || eventId || contextEventId;
+
+  // Sync active event ID with EventContext
+  useEffect(() => {
+    if (currentEventId && currentEventId !== contextEventId) {
+      setCurrentEventId(currentEventId);
+    }
+  }, [currentEventId, contextEventId, setCurrentEventId]);
 
   // Tab state: overview | tasks | volunteers | risks | meetings | documents
   const activeTab = searchParams.get("tab") || "overview";
@@ -239,7 +246,7 @@ export default function EventDetails() {
             <span>{activeTab === "documents" ? "Upload Document" : "Add Task"}</span>
           </button>
 
-          <Link to="/agent" className="primary-button">
+          <Link to={currentEventId ? `/agent?eventId=${currentEventId}` : "/agent"} className="primary-button">
             <Sparkles size={15} />
             <span>AI Assistant</span>
           </Link>
@@ -458,7 +465,7 @@ export default function EventDetails() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Event Tasks</h3>
-            <Link to="/tasks" className="secondary-button button-sm">
+            <Link to={currentEventId ? `/tasks?eventId=${currentEventId}` : "/tasks"} className="secondary-button button-sm">
               Open Full Task Board <ArrowUpRight size={13} />
             </Link>
           </div>
@@ -476,7 +483,7 @@ export default function EventDetails() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Assigned Volunteers</h3>
-            <Link to="/volunteers" className="secondary-button button-sm">
+            <Link to={currentEventId ? `/volunteers?eventId=${currentEventId}` : "/volunteers"} className="secondary-button button-sm">
               Manage All Volunteers <ArrowUpRight size={13} />
             </Link>
           </div>
@@ -534,7 +541,7 @@ export default function EventDetails() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Event Risk Registry</h3>
-            <Link to="/risks" className="secondary-button button-sm">
+            <Link to={currentEventId ? `/risks?eventId=${currentEventId}` : "/risks"} className="secondary-button button-sm">
               Open Risk Dashboard <ArrowUpRight size={13} />
             </Link>
           </div>
@@ -552,7 +559,7 @@ export default function EventDetails() {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Meeting Logs & AI Transcripts</h3>
-            <Link to="/meetings" className="primary-button button-sm">
+            <Link to={currentEventId ? `/meetings?eventId=${currentEventId}` : "/meetings"} className="primary-button button-sm">
               + Process New Meeting
             </Link>
           </div>

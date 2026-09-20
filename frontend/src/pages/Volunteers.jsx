@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Users,
   Search,
@@ -14,15 +15,26 @@ import {
 } from "lucide-react";
 
 import volunteerService from "../services/volunteerService";
-import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 
 export default function Volunteers() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlEventId = searchParams.get("eventId");
+  const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
+  const effectiveEventId = urlEventId || currentEventId;
+
   const [volunteers, setVolunteers] = useState([]);
-  const [eventId] = useState(() => safeStorage.getItem("eventId"));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Sync URL eventId with context if URL param exists
+  useEffect(() => {
+    if (urlEventId && urlEventId !== currentEventId) {
+      setCurrentEventId(urlEventId);
+    }
+  }, [urlEventId, currentEventId, setCurrentEventId]);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,15 +51,16 @@ export default function Volunteers() {
   });
 
   const loadVolunteers = async () => {
-    if (!eventId) {
+    if (!effectiveEventId) {
       setLoading(false);
+      setVolunteers([]);
       return;
     }
     setLoading(true);
     setError("");
 
     try {
-      const result = await volunteerService.getEventVolunteers(eventId);
+      const result = await volunteerService.getEventVolunteers(effectiveEventId);
       const list = result?.data?.volunteers || result?.data || result || [];
       setVolunteers(Array.isArray(list) ? list : []);
     } catch (err) {
@@ -59,7 +72,7 @@ export default function Volunteers() {
 
   useEffect(() => {
     loadVolunteers();
-  }, [eventId]);
+  }, [effectiveEventId]);
 
   const handleAddVolunteer = async (e) => {
     e.preventDefault();
@@ -68,7 +81,7 @@ export default function Volunteers() {
     try {
       const skillsArray = form.skills.split(",").map((s) => s.trim()).filter(Boolean);
       const payload = {
-        eventId,
+        eventId: effectiveEventId,
         name: form.name.trim(),
         team: form.team,
         skills: skillsArray,
@@ -145,7 +158,7 @@ export default function Volunteers() {
               People & Rosters
             </span>
           </div>
-          <h1>Volunteers</h1>
+          <h1>Volunteers {currentEvent?.name ? `— ${currentEvent.name}` : ""}</h1>
           <p>Organize committee teams, track skill sets, and balance volunteer task assignments.</p>
         </div>
 
@@ -189,6 +202,60 @@ export default function Volunteers() {
       {/* ── Filter Bar & Search ── */}
       <div className="filter-bar">
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {/* Active Event Selector */}
+          {events.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 8px",
+                height: 32,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: "var(--text-muted)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                EVENT:
+              </span>
+              <select
+                value={effectiveEventId || ""}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setCurrentEventId(newId);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("eventId", newId);
+                    return next;
+                  });
+                }}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--text-primary)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {events.map((evt) => (
+                  <option key={evt._id || evt.id} value={evt._id || evt.id}>
+                    {evt.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="search-input-wrapper">
             <Search size={14} style={{ color: "var(--text-muted)" }} />
             <input

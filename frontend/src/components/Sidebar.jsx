@@ -1,19 +1,19 @@
 import { X } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
-  const eventId = safeStorage.getItem("eventId");
+  const { currentEventId } = useEvent();
 
   const navigationItems = [
-    { label: "OVERVIEW", number: "01", path: "/dashboard" },
-    { label: "TASKS", number: "02", path: "/tasks" },
-    { label: "RISKS", number: "03", path: "/risks" },
-    { label: "VOLUNTEERS", number: "04", path: "/volunteers" },
-    { label: "MEETINGS", number: "05", path: "/meetings" },
-    { label: "DOCUMENTS", number: "06", path: eventId ? `/events/${eventId}?tab=documents` : "/events", alias: "/documents" },
-    { label: "AI AGENT", number: "07", path: "/agent" },
+    { label: "OVERVIEW", number: "01", path: currentEventId ? `/dashboard?eventId=${currentEventId}` : "/dashboard" },
+    { label: "TASKS", number: "02", path: currentEventId ? `/tasks?eventId=${currentEventId}` : "/tasks" },
+    { label: "RISKS", number: "03", path: currentEventId ? `/risks?eventId=${currentEventId}` : "/risks" },
+    { label: "VOLUNTEERS", number: "04", path: currentEventId ? `/volunteers?eventId=${currentEventId}` : "/volunteers" },
+    { label: "MEETINGS", number: "05", path: currentEventId ? `/meetings?eventId=${currentEventId}` : "/meetings" },
+    { label: "DOCUMENTS", number: "06", path: currentEventId ? `/events/${currentEventId}?tab=documents` : "/events", alias: "/documents" },
+    { label: "AI AGENT", number: "07", path: currentEventId ? `/agent?eventId=${currentEventId}` : "/agent" },
     { label: "NOTIFICATIONS", number: "08", path: "/notifications" },
   ];
 
@@ -31,11 +31,12 @@ export default function Sidebar({ isOpen, onClose }) {
         <div className="sidebar-nav-container">
           <nav className="editorial-nav">
             {navigationItems.map(({ label, number, path, alias }) => {
+              const basePath = path.split("?")[0];
               const isActive =
-                location.pathname === path ||
+                location.pathname === basePath ||
                 (alias && location.pathname === alias) ||
                 (path.includes("tab=documents") && location.search.includes("tab=documents")) ||
-                (path === "/dashboard" && location.pathname === "/");
+                (basePath === "/dashboard" && location.pathname === "/");
 
               return (
                 <NavLink

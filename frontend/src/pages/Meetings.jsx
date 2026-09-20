@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   MessageSquare,
   Sparkles,
@@ -13,20 +13,36 @@ import {
   Clock,
   X,
   FileCode,
+  CheckSquare,
+  ShieldAlert,
+  ArrowRight,
+  User,
+  Bot,
 } from "lucide-react";
 
 import meetingService from "../services/meetingService";
 import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 
 export default function Meetings() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlEventId = searchParams.get("eventId");
+  const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
+  const effectiveEventId = urlEventId || currentEventId;
 
   const [meetings, setMeetings] = useState([]);
-  const [eventId] = useState(() => safeStorage.getItem("eventId"));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Sync URL eventId with context if URL param exists
+  useEffect(() => {
+    if (urlEventId && urlEventId !== currentEventId) {
+      setCurrentEventId(urlEventId);
+    }
+  }, [urlEventId, currentEventId, setCurrentEventId]);
 
   // Modal states
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -36,22 +52,22 @@ export default function Meetings() {
   const [form, setForm] = useState({
     title: "",
     date: "",
-    eventId: safeStorage.getItem("eventId"),
     transcript: "",
   });
   const [processing, setProcessing] = useState(false);
   const [formError, setFormError] = useState("");
 
   const loadMeetings = async () => {
-    if (!eventId) {
+    if (!effectiveEventId) {
       setLoading(false);
+      setMeetings([]);
       return;
     }
     setLoading(true);
     setError("");
 
     try {
-      const res = await meetingService.getEventMeetings(eventId);
+      const res = await meetingService.getEventMeetings(effectiveEventId);
       const list = res?.data?.meetings || res?.data || res || [];
       setMeetings(Array.isArray(list) ? list : []);
     } catch (err) {
@@ -63,7 +79,7 @@ export default function Meetings() {
 
   useEffect(() => {
     loadMeetings();
-  }, [eventId]);
+  }, [effectiveEventId]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -73,7 +89,7 @@ export default function Meetings() {
     setForm({
       title: "Core Logistics & Keynote Speaker Alignment",
       date: new Date().toISOString().slice(0, 16),
-      eventId,
+      eventId: effectiveEventId,
       transcript: `Rahul: Hi team, let's align on the Tech Fest schedule.
 Alice: We've locked the Main Auditorium for Oct 1st to 3rd. We need David to test the stage PA system and projectors by Sep 22.
 Carol: I spoke with Dr. Sharma. Keynote travel is booked, but we must confirm the dietary preferences by Sep 25.
@@ -91,7 +107,7 @@ David: I will coordinate the AV team and run sound checks.`,
       const response = await meetingService.createMeeting({
         title: form.title,
         date: form.date || new Date().toISOString(),
-        eventId: form.eventId || eventId,
+        eventId: form.eventId || effectiveEventId,
         transcript: form.transcript,
       });
 
@@ -129,11 +145,65 @@ David: I will coordinate the AV team and run sound checks.`,
               Meeting Intelligence
             </span>
           </div>
-          <h1>Meetings</h1>
+          <h1>Meetings {currentEvent?.name ? `— ${currentEvent.name}` : ""}</h1>
           <p>Extract actionable tasks, detect hidden risks, and preserve key organizational decisions from transcripts.</p>
         </div>
 
-        <div className="page-header-actions">
+        <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Active Event Selector */}
+          {events.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 8px",
+                height: 36,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: "var(--text-muted)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                EVENT:
+              </span>
+              <select
+                value={effectiveEventId || ""}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setCurrentEventId(newId);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("eventId", newId);
+                    return next;
+                  });
+                }}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--text-primary)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {events.map((evt) => (
+                  <option key={evt._id || evt.id} value={evt._id || evt.id}>
+                    {evt.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <button className="primary-button" onClick={() => setShowSubmitModal(true)}>
             <Plus size={15} />
             <span>Process New Meeting</span>

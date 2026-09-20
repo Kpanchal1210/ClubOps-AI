@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Bot,
   Send,
@@ -18,12 +19,31 @@ import {
 } from "lucide-react";
 
 import agentService from "../services/agentService";
-import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 import Loading from "../components/Loading";
 
 export default function Agent() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlEventId = searchParams.get("eventId");
+  const promptParam = searchParams.get("prompt");
+  const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
+  const effectiveEventId = urlEventId || currentEventId;
+
   const [command, setCommand] = useState("");
-  const [eventId] = useState(() => safeStorage.getItem("eventId"));
+
+  // Sync URL eventId with context if URL param exists
+  useEffect(() => {
+    if (urlEventId && urlEventId !== currentEventId) {
+      setCurrentEventId(urlEventId);
+    }
+  }, [urlEventId, currentEventId, setCurrentEventId]);
+
+  // Pre-fill prompt from URL query if provided
+  useEffect(() => {
+    if (promptParam) {
+      setCommand(promptParam);
+    }
+  }, [promptParam]);
 
   // Chat conversation state
   const [messages, setMessages] = useState([
@@ -53,13 +73,14 @@ export default function Agent() {
 
   /* ── Load Action History ─────────────────── */
   useEffect(() => {
-    if (!eventId) {
+    if (!effectiveEventId) {
       setHistoryLoading(false);
+      setActions([]);
       return;
     }
     setHistoryLoading(true);
     agentService
-      .getActions(eventId)
+      .getActions(effectiveEventId)
       .then((res) => {
         const list = res?.data || res || [];
         setActions(Array.isArray(list) ? list : []);
@@ -68,7 +89,7 @@ export default function Agent() {
         console.warn("Failed to load agent actions:", err);
       })
       .finally(() => setHistoryLoading(false));
-  }, [eventId]);
+  }, [effectiveEventId]);
 
   /* ── Parse User Command into Proposal ──── */
   /* ── Parse User Command into Proposal or Direct Answer ──── */
@@ -122,7 +143,7 @@ export default function Agent() {
 
     if (isQuestion) {
       try {
-        const res = await agentService.sendCommand(trimmed, eventId);
+        const res = await agentService.sendCommand(trimmed, effectiveEventId);
         const action = res?.data || res;
         setActions((prev) => [action, ...prev]);
 
@@ -264,7 +285,7 @@ export default function Agent() {
       } else {
         // 3. Fallback: Send directly to backend AI agent
         try {
-          const res = await agentService.sendCommand(trimmed, eventId);
+          const res = await agentService.sendCommand(trimmed, effectiveEventId);
           const action = res?.data || res;
           setActions((prev) => [action, ...prev]);
 
@@ -306,7 +327,7 @@ export default function Agent() {
     setIsProcessing(true);
 
     try {
-      const res = await agentService.sendCommand(proposal.originalCommand, eventId);
+      const res = await agentService.sendCommand(proposal.originalCommand, effectiveEventId);
       const action = res?.data || res;
       setActions((prev) => [action, ...prev]);
       setPendingProposal(null);
@@ -366,11 +387,65 @@ export default function Agent() {
               Autonomous Operations
             </span>
           </div>
-          <h1>AI Assistant Workspace</h1>
+          <h1>AI Assistant Workspace {currentEvent?.name ? `— ${currentEvent.name}` : ""}</h1>
           <p>Issue conversational commands to manage schedules, create deliverables, and evaluate club liabilities.</p>
         </div>
 
-        <div className="page-header-actions">
+        <div className="page-header-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Active Event Selector */}
+          {events.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 8px",
+                height: 36,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: "var(--text-muted)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                EVENT:
+              </span>
+              <select
+                value={effectiveEventId || ""}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setCurrentEventId(newId);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("eventId", newId);
+                    return next;
+                  });
+                }}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--text-primary)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {events.map((evt) => (
+                  <option key={evt._id || evt.id} value={evt._id || evt.id}>
+                    {evt.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="filter-pills">
             <button
               className={`filter-pill ${activeTab === "chat" ? "active" : ""}`}

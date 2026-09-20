@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   ShieldAlert,
   AlertTriangle,
@@ -17,7 +18,7 @@ import {
 } from "lucide-react";
 
 import riskService from "../services/riskService";
-import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 
 import RiskCard from "../components/RiskCard";
 import Loading from "../components/Loading";
@@ -28,17 +29,28 @@ const EMPTY_FORM = {
   description: "",
   severity: "medium", // low | medium | high | critical
   probability: "medium", // low | medium | high
-  status: "open", // open | investigating | resolved | ignored
+  status: "identified", // identified | analyzing | mitigating | mitigated | accepted
   detectedBy: "manual",
   recommendedAction: "",
   assignedTo: "",
 };
 
 export default function Risks() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlEventId = searchParams.get("eventId");
+  const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
+  const effectiveEventId = urlEventId || currentEventId;
+
   const [risks, setRisks] = useState([]);
-  const [eventId] = useState(() => safeStorage.getItem("eventId"));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Sync URL eventId with context if URL param exists
+  useEffect(() => {
+    if (urlEventId && urlEventId !== currentEventId) {
+      setCurrentEventId(urlEventId);
+    }
+  }, [urlEventId, currentEventId, setCurrentEventId]);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,15 +68,16 @@ export default function Risks() {
 
   /* ── Load Risks ─────────────────────────── */
   const loadRisks = async () => {
-    if (!eventId) {
+    if (!effectiveEventId) {
       setLoading(false);
+      setRisks([]);
       return;
     }
     setLoading(true);
     setError("");
 
     try {
-      const result = await riskService.getEventRisks(eventId);
+      const result = await riskService.getEventRisks(effectiveEventId);
       const list = result?.data?.risks || result?.data || result || [];
       setRisks(Array.isArray(list) ? list : []);
     } catch (err) {
@@ -76,7 +89,7 @@ export default function Risks() {
 
   useEffect(() => {
     loadRisks();
-  }, [eventId]);
+  }, [effectiveEventId]);
 
   /* ── Open Create / Edit ───────────────────── */
   const openCreate = () => {
@@ -119,7 +132,7 @@ export default function Risks() {
       status: form.status,
       detectedBy: form.detectedBy || "manual",
       recommendedAction: form.recommendedAction,
-      eventId,
+      eventId: effectiveEventId,
     };
 
     if (form.assignedTo && /^[0-9a-fA-F]{24}$/.test(form.assignedTo)) {
@@ -215,7 +228,7 @@ export default function Risks() {
               Risk Assessment & Governance
             </span>
           </div>
-          <h1>Risk Dashboard</h1>
+          <h1>Risk Dashboard {currentEvent?.name ? `— ${currentEvent.name}` : ""}</h1>
           <p>Identify, monitor, and mitigate operational blockers and event liabilities.</p>
         </div>
 
@@ -267,6 +280,60 @@ export default function Risks() {
       {/* ── Filter Bar & Search ── */}
       <div className="filter-bar">
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {/* Active Event Selector */}
+          {events.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 8px",
+                height: 32,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: "var(--text-muted)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                EVENT:
+              </span>
+              <select
+                value={effectiveEventId || ""}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setCurrentEventId(newId);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("eventId", newId);
+                    return next;
+                  });
+                }}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--text-primary)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {events.map((evt) => (
+                  <option key={evt._id || evt.id} value={evt._id || evt.id}>
+                    {evt.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="search-input-wrapper">
             <Search size={14} style={{ color: "var(--text-muted)" }} />
             <input

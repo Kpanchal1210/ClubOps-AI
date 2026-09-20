@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 
 import taskService from "../services/taskService";
-import { safeStorage } from "../utils/storage";
+import { useEvent } from "../context/EventContext";
 
 import TaskCard from "../components/TaskCard";
 import Loading from "../components/Loading";
@@ -38,13 +38,23 @@ const EMPTY_FORM = {
 };
 
 export default function Tasks() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const urlSearch = searchParams.get("search") || "";
+  const urlEventId = searchParams.get("eventId");
+
+  const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
+  const effectiveEventId = urlEventId || currentEventId;
 
   const [tasks, setTasks] = useState([]);
-  const [eventId] = useState(() => safeStorage.getItem("eventId"));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Sync URL eventId with context if URL param exists
+  useEffect(() => {
+    if (urlEventId && urlEventId !== currentEventId) {
+      setCurrentEventId(urlEventId);
+    }
+  }, [urlEventId, currentEventId, setCurrentEventId]);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState(urlSearch);
@@ -64,15 +74,16 @@ export default function Tasks() {
 
   /* ── Load Tasks ─────────────────────────── */
   const loadTasks = async () => {
-    if (!eventId) {
+    if (!effectiveEventId) {
       setLoading(false);
+      setTasks([]);
       return;
     }
     setLoading(true);
     setError("");
 
     try {
-      const result = await taskService.getEventTasks(eventId);
+      const result = await taskService.getEventTasks(effectiveEventId);
       const list = result?.data?.tasks || result?.data || result || [];
       setTasks(Array.isArray(list) ? list : []);
     } catch (err) {
@@ -84,12 +95,12 @@ export default function Tasks() {
 
   useEffect(() => {
     loadTasks();
-  }, [eventId]);
+  }, [effectiveEventId]);
 
   /* ── Open Create / Edit ───────────────────── */
   const openCreate = () => {
     setEditTask(null);
-    setForm({ ...EMPTY_FORM, eventId });
+    setForm({ ...EMPTY_FORM, eventId: effectiveEventId });
     setFormError("");
     setShowForm(true);
   };
@@ -124,7 +135,7 @@ export default function Tasks() {
       priority: form.priority,
       status: form.status,
       deadline: form.deadline || undefined,
-      eventId,
+      eventId: effectiveEventId,
       source: form.source || "manual",
     };
 
@@ -236,7 +247,7 @@ export default function Tasks() {
               Work Coordination
             </span>
           </div>
-          <h1>Tasks</h1>
+          <h1>Tasks {currentEvent?.name ? `— ${currentEvent.name}` : ""}</h1>
           <p>Organize, assign, and track operational deliverables across your club.</p>
         </div>
 
@@ -253,6 +264,60 @@ export default function Tasks() {
       {/* ── Filter Bar & Search ── */}
       <div className="filter-bar">
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          {/* Active Event Context Selector */}
+          {events.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-default)",
+                borderRadius: "var(--radius-sm)",
+                padding: "2px 8px",
+                height: 32,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 700,
+                  color: "var(--text-muted)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                EVENT:
+              </span>
+              <select
+                value={effectiveEventId || ""}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setCurrentEventId(newId);
+                  setSearchParams((prev) => {
+                    const next = new URLSearchParams(prev);
+                    next.set("eventId", newId);
+                    return next;
+                  });
+                }}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "var(--text-primary)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              >
+                {events.map((evt) => (
+                  <option key={evt._id || evt.id} value={evt._id || evt.id}>
+                    {evt.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Search */}
           <div className="search-input-wrapper">
             <Search size={14} style={{ color: "var(--text-muted)" }} />
