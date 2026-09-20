@@ -91,15 +91,64 @@ export default function Agent() {
       setIsProcessing(false);
       const lower = trimmed.toLowerCase();
 
-      // Check if command is to create a risk
-      if (lower.includes("risk") || lower.includes("flag")) {
+      // 1. Send Notification or Announcement
+      if (lower.includes("notif") || lower.includes("announc") || lower.includes("broadcast") || lower.includes("alert")) {
+        const recipientMatch = trimmed.match(/to\s+([A-Za-z0-9_\s]+?)(?:\s+that|\s+about|\s+to|$)/i);
+        const recipient = recipientMatch ? recipientMatch[1].trim() : (lower.includes("all") ? "all" : "team");
+        const messageMatch = trimmed.match(/(?:that|about|message:?)\s+(.+)$/i);
+        const messageText = messageMatch ? messageMatch[1].trim() : trimmed;
+
+        const proposal = {
+          id: `prop-${Date.now()}`,
+          type: "notification",
+          title: `Announcement to ${recipient}`,
+          recipient,
+          message: messageText,
+          priority: lower.includes("critical") ? "Critical" : lower.includes("high") ? "High" : "Medium",
+          originalCommand: trimmed,
+        };
+
+        setPendingProposal(proposal);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `asst-${Date.now()}`,
+            sender: "assistant",
+            text: `I prepared an operational notification to dispatch to ${recipient}:`,
+            proposal,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+      } else if (lower.includes("mark") || lower.includes("update") || (lower.includes("task") && lower.includes("complet"))) {
+        // 2. Update Task
+        const proposal = {
+          id: `prop-${Date.now()}`,
+          type: "update_task",
+          title: trimmed.replace(/^mark (the )?/i, "").replace(/ task (as )?/i, " → "),
+          status: lower.includes("complete") ? "completed" : lower.includes("progress") ? "in_progress" : "pending",
+          priority: lower.includes("high") ? "High" : lower.includes("critical") ? "Critical" : undefined,
+          originalCommand: trimmed,
+        };
+
+        setPendingProposal(proposal);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `asst-${Date.now()}`,
+            sender: "assistant",
+            text: "I analyzed your task modification request. Please confirm before applying updates to the task roster:",
+            proposal,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+      } else if (lower.includes("risk") || lower.includes("flag")) {
+        // 3. Create Risk
         const proposal = {
           id: `prop-${Date.now()}`,
           type: "risk",
           title: trimmed.replace(/flag a |create a |report /i, ""),
           severity: lower.includes("high") ? "High" : lower.includes("critical") ? "Critical" : "Medium",
           probability: "Medium",
-          assignedTo: "Rahul Patel",
           originalCommand: trimmed,
         };
         setPendingProposal(proposal);
@@ -114,16 +163,16 @@ export default function Agent() {
           },
         ]);
       } else {
-        // Default: Create Task proposal
-        const assigneeMatch = trimmed.match(/for\s+([A-Za-z]+)/i);
-        const assignee = assigneeMatch ? assigneeMatch[1] : "Rahul Patel";
+        // 4. Default: Create Task proposal
+        const assigneeMatch = trimmed.match(/for\s+([A-Za-z]+)/i) || trimmed.match(/assign\s+([A-Za-z]+)/i);
+        const assignee = assigneeMatch ? assigneeMatch[1] : "Organizer";
 
         const proposal = {
           id: `prop-${Date.now()}`,
           type: "task",
-          title: trimmed.replace(/^create a (high priority |medium priority )?task (for \w+ )?(to )?/i, ""),
+          title: trimmed.replace(/^create a (high priority |medium priority )?task (for \w+ )?(to )?|^assign \w+ (to )?/i, ""),
           priority: lower.includes("high") ? "High" : lower.includes("critical") ? "Critical" : "Medium",
-          deadline: lower.includes("tomorrow") ? "Tomorrow, 6:00 PM" : "In 3 days",
+          deadline: lower.includes("tomorrow") ? "Tomorrow, 6:00 PM" : lower.includes("today") ? "Today, 11:59 PM" : "Upcoming",
           assignee: assignee,
           originalCommand: trimmed,
         };
@@ -260,8 +309,8 @@ export default function Agent() {
                     {msg.proposal && (
                       <div className="ai-confirm-card">
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                          <span className={`badge ${msg.proposal.priority ? msg.proposal.priority.toLowerCase() : "medium"}`}>
-                            {msg.proposal.priority || msg.proposal.severity}
+                          <span className={`badge ${msg.proposal.priority ? msg.proposal.priority.toLowerCase() : msg.proposal.severity ? msg.proposal.severity.toLowerCase() : "medium"}`}>
+                            {msg.proposal.type ? msg.proposal.type.toUpperCase().replace("_", " ") : "PROPOSAL"}
                           </span>
                           <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>
                             {msg.proposal.title}
@@ -269,6 +318,21 @@ export default function Agent() {
                         </div>
 
                         <div style={{ fontSize: 12.5, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 4 }}>
+                          {msg.proposal.recipient && (
+                            <div>
+                              Recipient: <strong>{msg.proposal.recipient}</strong>
+                            </div>
+                          )}
+                          {msg.proposal.message && (
+                            <div>
+                              Message: <em>"{msg.proposal.message}"</em>
+                            </div>
+                          )}
+                          {msg.proposal.status && (
+                            <div>
+                              New Status: <strong>{msg.proposal.status}</strong>
+                            </div>
+                          )}
                           {msg.proposal.assignee && (
                             <div>
                               Assignee: <strong>{msg.proposal.assignee}</strong>
@@ -294,7 +358,13 @@ export default function Agent() {
                               disabled={isProcessing}
                             >
                               <Check size={13} />
-                              Confirm & Create
+                              {msg.proposal.type === "notification"
+                                ? "Confirm & Dispatch"
+                                : msg.proposal.type === "update_task"
+                                ? "Confirm & Update"
+                                : msg.proposal.type === "risk"
+                                ? "Confirm & Report Risk"
+                                : "Confirm & Create Task"}
                             </button>
                             <button
                               className="secondary-button button-sm"
@@ -380,8 +450,10 @@ export default function Agent() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
                   "Create a high priority task for Rahul to contact sponsors tomorrow",
+                  "Mark the contact sponsors task as completed",
                   "Flag a high severity risk — auditorium confirmation pending",
-                  "Create a task for Alice to test AV sound equipment by Sep 22",
+                  "Send an announcement to all that final rehearsal starts in 1 hour",
+                  "Send notification to Maya that stage setup begins at 3pm",
                   "Report a medium risk: insufficient volunteer drivers for logistics",
                 ].map((prompt, idx) => (
                   <button

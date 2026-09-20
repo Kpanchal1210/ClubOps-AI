@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { safeStorage } from "../utils/storage";
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -13,6 +13,8 @@ export default function Sidebar({ isOpen, onClose }) {
     { label: "VOLUNTEERS", number: "04", path: "/volunteers" },
     { label: "MEETINGS", number: "05", path: "/meetings" },
     { label: "DOCUMENTS", number: "06", path: eventId ? `/events/${eventId}?tab=documents` : "/events", alias: "/documents" },
+    { label: "AI AGENT", number: "07", path: "/agent" },
+    { label: "NOTIFICATIONS", number: "08", path: "/notifications" },
   ];
 
   return (
@@ -51,7 +53,12 @@ export default function Sidebar({ isOpen, onClose }) {
         </div>
 
         {/* Bottom Technical Status */}
-        <div className="sidebar-bottom-status">
+        <Link
+          to="/agent"
+          onClick={onClose}
+          className="sidebar-bottom-status"
+          style={{ textDecoration: "none", display: "block", cursor: "pointer" }}
+        >
           <div className="ai-status-indicator">
             <span className="status-square-green">■</span>
             <span>AI AGENT READY</span>
@@ -59,7 +66,7 @@ export default function Sidebar({ isOpen, onClose }) {
           <p className="ai-status-sub">
             Event intelligence connected to live workspace data.
           </p>
-        </div>
+        </Link>
       </aside>
     </>
   );
