@@ -43,8 +43,4 @@ const documentChunkSchema = new mongoose.Schema(
   }
 );
 
-documentChunkSchema.index({ documentId: 1 });
-documentChunkSchema.index({ clubId: 1 });
-documentChunkSchema.index({ eventId: 1 });
-
 module.exports = mongoose.model("DocumentChunk", documentChunkSchema);
