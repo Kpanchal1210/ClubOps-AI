@@ -1,44 +1,42 @@
 const AgentAction = require("../models/AgentAction");
+const { runAgent } = require("../ai/agent/agent");
 
 
 // POST /api/agent/command
 const createAgentAction = async (req, res) => {
     try {
+
         const {
             command,
-            intent,
-            tool,
-            parameters,
             eventId
         } = req.body;
 
-        if (!command || !intent) {
+        if (!command) {
             return res.status(400).json({
                 success: false,
-                message: "command and intent are required"
+                message: "command is required"
             });
         }
 
-        const action = await AgentAction.create({
-            userId: req.user.userId,
-            eventId,
+        const result = await runAgent({
             command,
-            intent,
-            tool,
-            parameters: parameters || {},
-            status: "pending"
+            userId: req.user.userId,
+            eventId
         });
 
-        res.status(201).json({
+        return res.status(200).json({
             success: true,
-            message: "Agent action created",
-            data: action
+            message: "Agent command executed successfully",
+            data: result
         });
 
     } catch (error) {
-        res.status(500).json({
+
+        console.error("Agent command error:", error);
+
+        return res.status(500).json({
             success: false,
-            message: "Failed to create agent action",
+            message: "Failed to execute agent command",
             error: error.message
         });
     }

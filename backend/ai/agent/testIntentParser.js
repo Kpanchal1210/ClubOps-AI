@@ -8,7 +8,7 @@ const test = async () => {
     try {
 
         const command =
-            "Create a high priority task for me to contact sponsors tomorrow";
+    "Mark the Contact sponsors task as completed";
 
         const result = await parseIntent(command);
 
