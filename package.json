@@ -9,6 +9,12 @@
     "start": "node backend/server.js",
     "server": "node backend/server.js",
     "dev:backend": "npm --prefix backend run dev",
-    "dev:frontend": "npm --prefix frontend run dev"
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"blue,cyan\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "seed": "npm --prefix backend run seed",
+    "demo": "npm --prefix backend run demo"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }

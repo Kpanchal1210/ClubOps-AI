@@ -1,0 +1,36 @@
+name: ClubOps-AI CI/CD & Verification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install All Dependencies
+        run: |
+          npm --prefix backend install
+          npm --prefix frontend install
+
+      - name: Build Frontend Application
+        run: |
+          npm --prefix frontend run build
+
+      - name: Verify Backend Integrity
+        run: |
+          node -c backend/server.js
+          node -c backend/scripts/autoDemo.js
