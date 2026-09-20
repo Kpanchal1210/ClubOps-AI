@@ -22,6 +22,7 @@ import {
 
 import taskService from "../services/taskService";
 import { useEvent } from "../context/EventContext";
+import { safeStorage } from "../utils/storage";
 
 import TaskCard from "../components/TaskCard";
 import Loading from "../components/Loading";
@@ -45,8 +46,10 @@ export default function Tasks() {
   const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
   const effectiveEventId = urlEventId || currentEventId;
 
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState(() =>
+    effectiveEventId ? safeStorage.getJSON(`tasks_cache_${effectiveEventId}`) || [] : []
+  );
+  const [loading, setLoading] = useState(() => tasks.length === 0);
   const [error, setError] = useState("");
 
   // Sync URL eventId with context if URL param exists
@@ -79,13 +82,15 @@ export default function Tasks() {
       setTasks([]);
       return;
     }
-    setLoading(true);
+    if (tasks.length === 0) setLoading(true);
     setError("");
 
     try {
       const result = await taskService.getEventTasks(effectiveEventId);
       const list = result?.data?.tasks || result?.data || result || [];
-      setTasks(Array.isArray(list) ? list : []);
+      const arr = Array.isArray(list) ? list : [];
+      setTasks(arr);
+      safeStorage.setItem(`tasks_cache_${effectiveEventId}`, arr);
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Failed to load tasks.");
     } finally {
@@ -94,8 +99,20 @@ export default function Tasks() {
   };
 
   useEffect(() => {
+    const cached = effectiveEventId ? safeStorage.getJSON(`tasks_cache_${effectiveEventId}`) || [] : [];
+    if (cached.length > 0) {
+      setTasks(cached);
+      setLoading(false);
+    }
     loadTasks();
   }, [effectiveEventId]);
+
+  // Keep cache synced with tasks modifications
+  useEffect(() => {
+    if (effectiveEventId && tasks.length > 0) {
+      safeStorage.setItem(`tasks_cache_${effectiveEventId}`, tasks);
+    }
+  }, [tasks, effectiveEventId]);
 
   /* ── Open Create / Edit ───────────────────── */
   const openCreate = () => {

@@ -37,8 +37,9 @@ export default function Events() {
   const navigate = useNavigate();
   const { setCurrentEventId, refreshEvents } = useEvent();
 
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cachedEvents = safeStorage.getJSON("events_cache") || [];
+  const [events, setEvents] = useState(cachedEvents);
+  const [loading, setLoading] = useState(cachedEvents.length === 0);
   const [error, setError] = useState("");
 
   // Filters & Views
@@ -54,15 +55,19 @@ export default function Events() {
 
   /* ── Load events ──────────────────────────── */
   const loadEvents = async () => {
-    setLoading(true);
+    if (events.length === 0) setLoading(true);
     setError("");
 
     try {
       const result = await eventService.getAllEvents();
       const list = result?.data?.events || result?.data || result || [];
-      setEvents(Array.isArray(list) ? list : []);
+      const validList = Array.isArray(list) ? list : [];
+      setEvents(validList);
+      safeStorage.setJSON("events_cache", validList);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Failed to load events.");
+      if (events.length === 0) {
+        setError(err.response?.data?.message || err.message || "Failed to load events.");
+      }
     } finally {
       setLoading(false);
     }
@@ -94,7 +99,11 @@ export default function Events() {
       const result = await eventService.createEvent(newEventData);
       const created = result?.data?.event || result?.data || result;
       if (created) {
-        setEvents((prev) => [created, ...prev]);
+        setEvents((prev) => {
+          const updated = [created, ...prev];
+          safeStorage.setJSON("events_cache", updated);
+          return updated;
+        });
         const newId = created._id || created.id;
         setCurrentEventId(newId);
         refreshEvents();

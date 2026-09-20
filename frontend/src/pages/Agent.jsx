@@ -21,6 +21,7 @@ import {
 import agentService from "../services/agentService";
 import { useEvent } from "../context/EventContext";
 import Loading from "../components/Loading";
+import { safeStorage } from "../utils/storage";
 
 export default function Agent() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -59,8 +60,12 @@ export default function Agent() {
   const [pendingProposal, setPendingProposal] = useState(null);
 
   // History & execution state
-  const [actions, setActions] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const [actions, setActions] = useState(() =>
+    effectiveEventId ? safeStorage.getJSON(`agent_actions_${effectiveEventId}`) || [] : []
+  );
+  const [historyLoading, setHistoryLoading] = useState(() =>
+    effectiveEventId ? !(safeStorage.getJSON(`agent_actions_${effectiveEventId}`)?.length) : false
+  );
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("chat"); // chat | history
 
@@ -78,12 +83,20 @@ export default function Agent() {
       setActions([]);
       return;
     }
-    setHistoryLoading(true);
+    const cached = safeStorage.getJSON(`agent_actions_${effectiveEventId}`);
+    if (cached && cached.length > 0) {
+      setActions(cached);
+    } else {
+      setHistoryLoading(true);
+    }
+
     agentService
       .getActions(effectiveEventId)
       .then((res) => {
         const list = res?.data || res || [];
-        setActions(Array.isArray(list) ? list : []);
+        const validList = Array.isArray(list) ? list : [];
+        setActions(validList);
+        safeStorage.setJSON(`agent_actions_${effectiveEventId}`, validList);
       })
       .catch((err) => {
         console.warn("Failed to load agent actions:", err);

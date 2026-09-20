@@ -37,6 +37,7 @@ import RiskCard from "../components/RiskCard";
 import Loading from "../components/Loading";
 import ErrorMessage from "../components/ErrorMessage";
 import { useEvent } from "../context/EventContext";
+import { safeStorage } from "../utils/storage";
 
 export default function EventDetails() {
   const { id, eventId } = useParams();
@@ -60,14 +61,22 @@ export default function EventDetails() {
     setSearchParams({ tab });
   };
 
-  const [event, setEvent] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [risks, setRisks] = useState([]);
-  const [volunteers, setVolunteers] = useState([]);
-  const [meetings, setMeetings] = useState([]);
-  const [documents, setDocuments] = useState([]);
+  const getCachedEvent = (eid) => {
+    if (!eid) return null;
+    const direct = safeStorage.getJSON(`event_details_cache_${eid}`);
+    if (direct) return direct;
+    const list = safeStorage.getJSON("events_cache") || [];
+    return list.find((e) => (e._id || e.id) === eid) || null;
+  };
 
-  const [loading, setLoading] = useState(true);
+  const [event, setEvent] = useState(() => getCachedEvent(currentEventId));
+  const [tasks, setTasks] = useState(() => (currentEventId ? safeStorage.getJSON(`tasks_cache_${currentEventId}`) || [] : []));
+  const [risks, setRisks] = useState(() => (currentEventId ? safeStorage.getJSON(`risks_cache_${currentEventId}`) || [] : []));
+  const [volunteers, setVolunteers] = useState(() => (currentEventId ? safeStorage.getJSON(`volunteers_cache_${currentEventId}`) || [] : []));
+  const [meetings, setMeetings] = useState(() => (currentEventId ? safeStorage.getJSON(`meetings_cache_${currentEventId}`) || [] : []));
+  const [documents, setDocuments] = useState(() => (currentEventId ? safeStorage.getJSON(`documents_cache_${currentEventId}`) || [] : []));
+
+  const [loading, setLoading] = useState(() => !getCachedEvent(currentEventId));
   const [error, setError] = useState("");
 
   // Documents / RAG search state
@@ -86,7 +95,7 @@ export default function EventDetails() {
       return;
     }
     safeStorage.setItem("eventId", currentEventId);
-    setLoading(true);
+    if (!event) setLoading(true);
     setError("");
 
     try {
@@ -100,37 +109,65 @@ export default function EventDetails() {
       ]);
 
       if (evtRes.status === "fulfilled" && evtRes.value) {
-        setEvent(evtRes.value?.data?.event || evtRes.value?.data || evtRes.value);
+        const evtData = evtRes.value?.data?.event || evtRes.value?.data || evtRes.value;
+        if (evtData) {
+          setEvent(evtData);
+          safeStorage.setJSON(`event_details_cache_${currentEventId}`, evtData);
+        }
       }
       if (tasksRes.status === "fulfilled" && tasksRes.value) {
         const t = tasksRes.value?.data?.tasks || tasksRes.value?.data || tasksRes.value;
-        setTasks(Array.isArray(t) ? t : []);
+        const taskList = Array.isArray(t) ? t : [];
+        setTasks(taskList);
+        safeStorage.setJSON(`tasks_cache_${currentEventId}`, taskList);
       }
       if (risksRes.status === "fulfilled" && risksRes.value) {
         const r = risksRes.value?.data?.risks || risksRes.value?.data || risksRes.value;
-        setRisks(Array.isArray(r) ? r : []);
+        const riskList = Array.isArray(r) ? r : [];
+        setRisks(riskList);
+        safeStorage.setJSON(`risks_cache_${currentEventId}`, riskList);
       }
       if (volsRes.status === "fulfilled" && volsRes.value) {
         const v = volsRes.value?.data?.volunteers || volsRes.value?.data || volsRes.value;
-        setVolunteers(Array.isArray(v) ? v : []);
+        const volList = Array.isArray(v) ? v : [];
+        setVolunteers(volList);
+        safeStorage.setJSON(`volunteers_cache_${currentEventId}`, volList);
       }
       if (meetingsRes.status === "fulfilled" && meetingsRes.value) {
         const m = meetingsRes.value?.data?.meetings || meetingsRes.value?.data || meetingsRes.value;
-        setMeetings(Array.isArray(m) ? m : []);
+        const meetingList = Array.isArray(m) ? m : [];
+        setMeetings(meetingList);
+        safeStorage.setJSON(`meetings_cache_${currentEventId}`, meetingList);
       }
       if (docsRes.status === "fulfilled" && docsRes.value) {
         const d = docsRes.value?.data?.documents || docsRes.value?.data || docsRes.value;
-        setDocuments(Array.isArray(d) ? d : []);
+        const docList = Array.isArray(d) ? d : [];
+        setDocuments(docList);
+        safeStorage.setJSON(`documents_cache_${currentEventId}`, docList);
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Failed to load event workspace.");
+      if (!event) {
+        setError(err.response?.data?.message || err.message || "Failed to load event workspace.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadAllEventData();
+    if (currentEventId) {
+      const cachedEvt = getCachedEvent(currentEventId);
+      if (cachedEvt) {
+        setEvent(cachedEvt);
+        setTasks(safeStorage.getJSON(`tasks_cache_${currentEventId}`) || []);
+        setRisks(safeStorage.getJSON(`risks_cache_${currentEventId}`) || []);
+        setVolunteers(safeStorage.getJSON(`volunteers_cache_${currentEventId}`) || []);
+        setMeetings(safeStorage.getJSON(`meetings_cache_${currentEventId}`) || []);
+        setDocuments(safeStorage.getJSON(`documents_cache_${currentEventId}`) || []);
+        setLoading(false);
+      }
+      loadAllEventData();
+    }
   }, [currentEventId]);
 
   // Handle RAG Ask Documents (POST /api/rag/query)
@@ -180,7 +217,11 @@ export default function EventDetails() {
       const response = await documentService.uploadDocument(newDoc);
       const created = response?.data || response;
       if (created) {
-        setDocuments((prev) => [created, ...prev]);
+        setDocuments((prev) => {
+          const updated = [created, ...prev];
+          safeStorage.setJSON(`documents_cache_${currentEventId}`, updated);
+          return updated;
+        });
       }
       setShowDocUpload(false);
       setUploadDocName("");

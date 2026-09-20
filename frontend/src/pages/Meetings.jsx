@@ -33,8 +33,10 @@ export default function Meetings() {
   const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
   const effectiveEventId = urlEventId || currentEventId;
 
-  const [meetings, setMeetings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [meetings, setMeetings] = useState(() =>
+    effectiveEventId ? safeStorage.getJSON(`meetings_cache_${effectiveEventId}`) || [] : []
+  );
+  const [loading, setLoading] = useState(() => meetings.length === 0);
   const [error, setError] = useState("");
 
   // Sync URL eventId with context if URL param exists
@@ -63,13 +65,15 @@ export default function Meetings() {
       setMeetings([]);
       return;
     }
-    setLoading(true);
+    if (meetings.length === 0) setLoading(true);
     setError("");
 
     try {
       const res = await meetingService.getEventMeetings(effectiveEventId);
       const list = res?.data?.meetings || res?.data || res || [];
-      setMeetings(Array.isArray(list) ? list : []);
+      const arr = Array.isArray(list) ? list : [];
+      setMeetings(arr);
+      safeStorage.setItem(`meetings_cache_${effectiveEventId}`, arr);
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Failed to load meetings.");
     } finally {
@@ -78,8 +82,19 @@ export default function Meetings() {
   };
 
   useEffect(() => {
+    const cached = effectiveEventId ? safeStorage.getJSON(`meetings_cache_${effectiveEventId}`) || [] : [];
+    if (cached.length > 0) {
+      setMeetings(cached);
+      setLoading(false);
+    }
     loadMeetings();
   }, [effectiveEventId]);
+
+  useEffect(() => {
+    if (effectiveEventId && meetings.length > 0) {
+      safeStorage.setItem(`meetings_cache_${effectiveEventId}`, meetings);
+    }
+  }, [meetings, effectiveEventId]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });

@@ -13,7 +13,7 @@ const EventContext = createContext(null);
 
 export function EventProvider({ children }) {
   const { isAuthenticated } = useAuth();
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState(() => safeStorage.getJSON("events_cache") || []);
   const [currentEventId, setCurrentEventIdState] = useState(() => safeStorage.getItem("eventId"));
   const [loading, setLoading] = useState(false);
 
@@ -22,12 +22,12 @@ export function EventProvider({ children }) {
       setEvents([]);
       return;
     }
-    setLoading(true);
     try {
       const res = await eventService.getAllEvents();
       const list = res?.data?.events || res?.data || res || [];
       const arr = Array.isArray(list) ? list : [];
       setEvents(arr);
+      safeStorage.setItem("events_cache", arr);
 
       const savedId = safeStorage.getItem("eventId");
       const exists = arr.some((e) => (e._id || e.id) === savedId);
@@ -37,10 +37,7 @@ export function EventProvider({ children }) {
           const firstId = arr[0]._id || arr[0].id;
           safeStorage.setItem("eventId", firstId);
           setCurrentEventIdState(firstId);
-          window.dispatchEvent(
-            new CustomEvent("clubops:event-changed", { detail: { eventId: firstId } })
-          );
-        } else {
+        } else if (savedId !== currentEventId) {
           setCurrentEventIdState(savedId);
         }
       } else {
@@ -52,7 +49,7 @@ export function EventProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, currentEventId]);
 
   useEffect(() => {
     fetchEvents();

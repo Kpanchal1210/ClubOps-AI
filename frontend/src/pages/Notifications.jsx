@@ -15,33 +15,38 @@ import notificationService from "../services/notificationService";
 
 import NotificationItem from "../components/NotificationItem";
 import Loading from "../components/Loading";
+import { safeStorage } from "../utils/storage";
 
 export default function Notifications() {
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cachedNotifications = safeStorage.getJSON("notifications_cache") || [];
+  const [notifications, setNotifications] = useState(cachedNotifications);
+  const [loading, setLoading] = useState(cachedNotifications.length === 0);
   const [filterType, setFilterType] = useState("all"); // all | unread | tasks | risks | announcements
 
   /* ── Load Notifications ─────────────────── */
   useEffect(() => {
-    setLoading(true);
+    if (notifications.length === 0) setLoading(true);
     notificationService
       .getNotifications()
       .then((res) => {
         const data = res?.data || res;
-        setNotifications(Array.isArray(data) ? data : []);
+        const list = Array.isArray(data) ? data : [];
+        setNotifications(list);
+        safeStorage.setJSON("notifications_cache", list);
       })
       .catch((err) => {
         console.error("Failed to fetch notifications:", err);
-        setNotifications([]);
       })
       .finally(() => setLoading(false));
   }, []);
 
   /* ── Mark Single Read ───────────────────── */
   const handleMarkRead = async (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => ((n._id || n.id) === id ? { ...n, read: true } : n))
-    );
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ((n._id || n.id) === id ? { ...n, read: true } : n));
+      safeStorage.setJSON("notifications_cache", updated);
+      return updated;
+    });
 
     try {
       await notificationService.markAsRead(id);
@@ -52,7 +57,11 @@ export default function Notifications() {
 
   /* ── Mark All Read ──────────────────────── */
   const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => {
+      const updated = prev.map((n) => ({ ...n, read: true }));
+      safeStorage.setJSON("notifications_cache", updated);
+      return updated;
+    });
 
     notifications
       .filter((n) => !n.read)

@@ -19,6 +19,7 @@ import {
 
 import riskService from "../services/riskService";
 import { useEvent } from "../context/EventContext";
+import { safeStorage } from "../utils/storage";
 
 import RiskCard from "../components/RiskCard";
 import Loading from "../components/Loading";
@@ -41,8 +42,10 @@ export default function Risks() {
   const { events, currentEventId, currentEvent, setCurrentEventId } = useEvent();
   const effectiveEventId = urlEventId || currentEventId;
 
-  const [risks, setRisks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [risks, setRisks] = useState(() =>
+    effectiveEventId ? safeStorage.getJSON(`risks_cache_${effectiveEventId}`) || [] : []
+  );
+  const [loading, setLoading] = useState(() => risks.length === 0);
   const [error, setError] = useState("");
 
   // Sync URL eventId with context if URL param exists
@@ -73,13 +76,15 @@ export default function Risks() {
       setRisks([]);
       return;
     }
-    setLoading(true);
+    if (risks.length === 0) setLoading(true);
     setError("");
 
     try {
       const result = await riskService.getEventRisks(effectiveEventId);
       const list = result?.data?.risks || result?.data || result || [];
-      setRisks(Array.isArray(list) ? list : []);
+      const arr = Array.isArray(list) ? list : [];
+      setRisks(arr);
+      safeStorage.setItem(`risks_cache_${effectiveEventId}`, arr);
     } catch (err) {
       setError(err.response?.data?.message || err.message || "Failed to load risks.");
     } finally {
@@ -88,8 +93,19 @@ export default function Risks() {
   };
 
   useEffect(() => {
+    const cached = effectiveEventId ? safeStorage.getJSON(`risks_cache_${effectiveEventId}`) || [] : [];
+    if (cached.length > 0) {
+      setRisks(cached);
+      setLoading(false);
+    }
     loadRisks();
   }, [effectiveEventId]);
+
+  useEffect(() => {
+    if (effectiveEventId && risks.length > 0) {
+      safeStorage.setItem(`risks_cache_${effectiveEventId}`, risks);
+    }
+  }, [risks, effectiveEventId]);
 
   /* ── Open Create / Edit ───────────────────── */
   const openCreate = () => {

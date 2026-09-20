@@ -24,6 +24,7 @@ import {
 import eventService from "../services/eventService";
 import { useAuth } from "../context/AuthContext";
 import { useEvent } from "../context/EventContext";
+import { safeStorage } from "../utils/storage";
 
 import StatCard from "../components/StatCard";
 import TaskCard from "../components/TaskCard";
@@ -39,8 +40,10 @@ export default function Dashboard() {
   const { events, currentEventId, currentEvent: activeEventFromCtx, setCurrentEventId } = useEvent();
   const effectiveEventId = urlEventId || currentEventId;
 
-  const [dashboard, setDashboard] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [dashboard, setDashboard] = useState(() =>
+    effectiveEventId ? safeStorage.getJSON(`dashboard_cache_${effectiveEventId}`) : null
+  );
+  const [loading, setLoading] = useState(!dashboard);
   const [error, setError] = useState("");
   const [taskFilter, setTaskFilter] = useState("all");
   const [aiCommand, setAiCommand] = useState("");
@@ -58,13 +61,16 @@ export default function Dashboard() {
       setDashboard(null);
       return;
     }
-    setLoading(true);
+    if (!dashboard) setLoading(true);
     setError("");
 
     try {
       const dashRes = await eventService.getDashboard(effectiveEventId);
       const d = dashRes?.data || dashRes;
-      if (d) setDashboard(d);
+      if (d) {
+        setDashboard(d);
+        safeStorage.setItem(`dashboard_cache_${effectiveEventId}`, d);
+      }
     } catch (err) {
       console.warn("Dashboard sync error:", err);
       setError(err.response?.data?.message || err.message || "Failed to load dashboard.");
@@ -74,6 +80,12 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    // If effectiveEventId changed, load from cache first
+    const cached = effectiveEventId ? safeStorage.getJSON(`dashboard_cache_${effectiveEventId}`) : null;
+    if (cached) {
+      setDashboard(cached);
+      setLoading(false);
+    }
     loadDashboard();
   }, [effectiveEventId]);
 
@@ -94,7 +106,7 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) {
+  if (loading && !dashboard) {
     return <Loading message="Connecting to ClubOps API and loading workspace..." />;
   }
 
