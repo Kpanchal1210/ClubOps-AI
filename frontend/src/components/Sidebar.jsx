@@ -4,7 +4,7 @@ import { safeStorage } from "../utils/storage";
 
 export default function Sidebar({ isOpen, onClose }) {
   const location = useLocation();
-  const eventId = safeStorage.getItem("eventId", "mock-event-1");
+  const eventId = safeStorage.getItem("eventId");
 
   const navigationItems = [
     { label: "OVERVIEW", number: "01", path: "/dashboard" },
@@ -12,7 +12,7 @@ export default function Sidebar({ isOpen, onClose }) {
     { label: "RISKS", number: "03", path: "/risks" },
     { label: "VOLUNTEERS", number: "04", path: "/volunteers" },
     { label: "MEETINGS", number: "05", path: "/meetings" },
-    { label: "DOCUMENTS", number: "06", path: `/events/${eventId}?tab=documents`, alias: "/documents" },
+    { label: "DOCUMENTS", number: "06", path: eventId ? `/events/${eventId}?tab=documents` : "/events", alias: "/documents" },
   ];
 
   return (
@@ -57,7 +57,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <span>AI AGENT READY</span>
           </div>
           <p className="ai-status-sub">
-            Event intelligence connected to static workspace data.
+            Event intelligence connected to live workspace data.
           </p>
         </div>
       </aside>

@@ -18,7 +18,13 @@ import Notifications from "./pages/Notifications";
 import AIResults from "./pages/AIResults";
 import Agent from "./pages/Agent";
 
+import { safeStorage } from "./utils/storage";
 import "./App.css";
+
+function DocumentsRedirect() {
+  const eventId = safeStorage.getItem("eventId");
+  return <Navigate to={eventId ? `/events/${eventId}?tab=documents` : "/events"} replace />;
+}
 
 export default function App() {
   return (
@@ -43,7 +49,7 @@ export default function App() {
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/ai-results" element={<AIResults />} />
                 <Route path="/agent" element={<Agent />} />
-                <Route path="/documents" element={<Navigate to="/events/mock-event-1?tab=documents" replace />} />
+                <Route path="/documents" element={<DocumentsRedirect />} />
               </Route>
             </Route>
 
