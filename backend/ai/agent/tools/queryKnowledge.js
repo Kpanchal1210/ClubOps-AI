@@ -1,8 +1,8 @@
-const axios = require("axios");
 const Event = require("../../../models/Event");
 const Club = require("../../../models/Club");
 const Document = require("../../../models/Document");
 const { GoogleGenAI } = require("@google/genai");
+const { generateRAGAnswer } = require("../../../rag/services/ragService");
 
 const queryKnowledgeTool = async ({
     query,
@@ -50,26 +50,21 @@ const queryKnowledgeTool = async ({
     let answer = null;
     let sources = [];
 
-    // 3. Attempt to query RAG microservice (port 5001)
-    const ragServiceUrl = process.env.RAG_SERVICE_URL || "http://localhost:5001";
+    // 3. Query in-process RAG service directly (vector embeddings + Gemini)
     try {
-        const ragRes = await axios.post(
-            `${ragServiceUrl}/api/rag/ask`,
-            {
-                question: trimmedQuery,
-                clubId: clubId ? clubId.toString() : undefined,
-                eventId: eventId ? eventId.toString() : undefined
-            },
-            { timeout: 3500 }
+        const ragRes = await generateRAGAnswer(
+            trimmedQuery,
+            null,
+            clubId ? clubId.toString() : null,
+            eventId ? eventId.toString() : null
         );
 
-        if (ragRes.data && ragRes.data.answer) {
-            answer = ragRes.data.answer;
-            sources = ragRes.data.sources || [];
+        if (ragRes && ragRes.answer && ragRes.sources && ragRes.sources.length > 0) {
+            answer = ragRes.answer;
+            sources = ragRes.sources;
         }
     } catch (ragErr) {
-        // RAG microservice is either offline or unreachable; gracefully fallback to MongoDB documents
-        console.log("RAG service query fallback to database documents:", ragErr.message);
+        console.log("In-process RAG query fallback to database documents:", ragErr.message);
     }
 
     // 4. Grounded Document Fallback using MongoDB Document records + Gemini

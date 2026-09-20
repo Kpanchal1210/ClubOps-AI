@@ -2,6 +2,8 @@ const Document = require("../models/Document");
 const DocumentChunk = require("../models/DocumentChunk");
 const Club = require("../models/Club");
 const Event = require("../models/Event");
+const { chunkText } = require("../rag/chunking/chunker");
+const { generateEmbedding } = require("../rag/embeddings/embedder");
 
 const checkClubMember = async (clubId, userId) => {
     const club = await Club.findById(clubId);
@@ -218,15 +220,46 @@ const processDocument = async (req, res) => {
             });
         }
 
-        // RAG member will connect extraction,
-        // chunking and embedding here.
+        let totalChunks = 0;
+        if (document.content) {
+            // Remove previous chunks for idempotence
+            await DocumentChunk.deleteMany({ documentId: document._id.toString() });
+
+            const chunks = chunkText(document.content, 500, 50);
+            for (const chunk of chunks) {
+                let embedding = [];
+                try {
+                    embedding = await generateEmbedding(chunk.text);
+                } catch (embErr) {
+                    console.warn(`[Process Document] Embedding chunk ${chunk.chunkIndex} failed:`, embErr.message);
+                }
+
+                await DocumentChunk.create({
+                    documentId: document._id.toString(),
+                    clubId: document.clubId ? document.clubId.toString() : null,
+                    eventId: document.eventId ? document.eventId.toString() : null,
+                    fileName: document.fileName || document.title,
+                    chunkIndex: chunk.chunkIndex,
+                    text: chunk.text,
+                    embedding,
+                    metadata: {
+                        title: document.title
+                    }
+                });
+            }
+
+            totalChunks = chunks.length;
+            document.processed = true;
+            await document.save();
+        }
 
         res.json({
             success: true,
-            message: "Document sent for processing",
+            message: "Document processed and indexed successfully",
             data: {
                 documentId: document._id,
-                processed: document.processed
+                processed: true,
+                totalChunks
             }
         });
 
