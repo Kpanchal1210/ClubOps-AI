@@ -2332,3 +2332,93 @@ tbody tr:last-child td {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ── Document Preview & Transcript Viewer Modal ── */
+.doc-viewer-container {
+  max-width: 860px !important;
+  width: 95% !important;
+  max-height: 92vh !important;
+}
+
+.doc-viewer-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 14px 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border-default);
+  font-size: 12px;
+}
+
+.doc-viewer-meta-label {
+  color: var(--text-muted);
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.doc-viewer-meta-val {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.doc-viewer-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 24px 0;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.doc-viewer-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.15s ease;
+}
+
+.doc-viewer-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.doc-viewer-tab-btn.active {
+  color: #ffffff;
+  border-bottom-color: var(--color-primary);
+}
+
+.doc-content-pre {
+  background: #090a0f;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.doc-chunk-card {
+  background: #090a0f;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  transition: border-color 0.15s ease;
+}
+
+.doc-chunk-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+}

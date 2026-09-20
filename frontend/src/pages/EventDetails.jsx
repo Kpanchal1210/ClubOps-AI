@@ -23,6 +23,10 @@ import {
   Eye,
   Trash2,
   Loader2,
+  Copy,
+  Check,
+  Layers,
+  BookOpen,
 } from "lucide-react";
 
 import eventService from "../services/eventService";
@@ -89,6 +93,12 @@ export default function EventDetails() {
   const [showDocUpload, setShowDocUpload] = useState(false);
   const [uploadDocName, setUploadDocName] = useState("");
   const [uploadDocType, setUploadDocType] = useState("PDF");
+
+  // Document details / preview modal state
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [loadingDocDetails, setLoadingDocDetails] = useState(false);
+  const [copiedContent, setCopiedContent] = useState(false);
+  const [activeDocTab, setActiveDocTab] = useState("content"); // 'content' | 'chunks'
 
   const loadAllEventData = async () => {
     if (!currentEventId) {
@@ -229,6 +239,74 @@ export default function EventDetails() {
     } catch (err) {
       console.error("Document upload failed:", err);
       alert(err.response?.data?.message || "Document upload failed.");
+    }
+  };
+
+  // Handle Opening Document Details & Transcript Modal
+  const handleOpenDocument = async (doc) => {
+    if (!doc) return;
+    setSelectedDoc(doc);
+    setLoadingDocDetails(true);
+    setActiveDocTab("content");
+    setCopiedContent(false);
+
+    try {
+      const docId = doc._id || doc.id;
+      if (docId) {
+        const res = await documentService.getDocument(docId);
+        const fetchedDoc = res?.data || res;
+        if (fetchedDoc) {
+          setSelectedDoc(fetchedDoc);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch full document details:", err);
+    } finally {
+      setLoadingDocDetails(false);
+    }
+  };
+
+  // Handle Copying Transcript or Raw Document Content
+  const handleCopyDocContent = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedContent(true);
+    setTimeout(() => setCopiedContent(false), 2000);
+  };
+
+  // Handle Asking AI about this specific document
+  const handleAskAboutDoc = (doc) => {
+    const docName = doc.title || doc.fileName || "this document";
+    const promptQuery = `Summarize the operational directives and decisions in "${docName}"`;
+    setRagQuery(promptQuery);
+    setSelectedDoc(null);
+    setTimeout(() => {
+      const ragInput = document.getElementById("event-rag-input");
+      if (ragInput) {
+        ragInput.focus();
+        ragInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 120);
+  };
+
+  // Handle Deleting Document
+  const handleDeleteDocument = async (docId, docTitle) => {
+    if (!window.confirm(`Are you sure you want to delete "${docTitle}"? This will also remove its indexed vector chunks.`)) {
+      return;
+    }
+    try {
+      await documentService.deleteDocument(docId);
+      setDocuments((prev) => {
+        const updated = prev.filter((d) => (d._id || d.id) !== docId);
+        safeStorage.setJSON(`documents_cache_${currentEventId}`, updated);
+        return updated;
+      });
+      if (selectedDoc && (selectedDoc._id || selectedDoc.id) === docId) {
+        setSelectedDoc(null);
+      }
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+      alert(err.response?.data?.message || "Failed to delete document");
     }
   };
 
@@ -669,6 +747,7 @@ export default function EventDetails() {
               <div className="rag-input-wrapper">
                 <Search size={15} className="rag-input-icon" />
                 <input
+                  id="event-rag-input"
                   type="text"
                   placeholder="Ask anything about event contracts, venue safety rules, or schedule guidelines..."
                   value={ragQuery}
@@ -754,12 +833,16 @@ export default function EventDetails() {
                   return (
                     <tr key={doc._id}>
                       <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div
+                          style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+                          onClick={() => handleOpenDocument(doc)}
+                          title="Click to view document details & transcript"
+                        >
                           <FileText size={16} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
                           <div>
                             <strong style={{ color: "var(--text-primary)" }}>{docTitle}</strong>
                             <small style={{ display: "block", color: "var(--text-muted)", fontSize: 11 }}>
-                              {doc.fileName ? `${doc.fileName} • ` : ""}{doc.size || "1.2 MB"}
+                              {doc.fileName ? `${doc.fileName} • ` : ""}{doc.size || (doc.content ? `${doc.content.length} chars` : "1.2 MB")}
                             </small>
                           </div>
                         </div>
@@ -778,13 +861,25 @@ export default function EventDetails() {
                       </td>
                       <td>{new Date(docDate).toLocaleDateString()}</td>
                       <td style={{ textAlign: "right" }}>
-                        <button
-                          className="ghost-button button-sm"
-                          onClick={() => alert(`Document Details:\nTitle: ${docTitle}\nType: ${docType}\nStatus: ${isProcessed ? "Processed (RAG Indexed)" : "Pending"}\nEvent: ${eventDisplayName}`)}
-                          title="View Document"
-                        >
-                          <Eye size={13} />
-                        </button>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                          <button
+                            className="ghost-button button-sm"
+                            onClick={() => handleOpenDocument(doc)}
+                            title="View Document Details & Content"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 8px" }}
+                          >
+                            <Eye size={13} />
+                            <span>View</span>
+                          </button>
+                          <button
+                            className="ghost-button button-sm"
+                            onClick={() => handleDeleteDocument(doc._id, docTitle)}
+                            title="Delete Document"
+                            style={{ color: "var(--text-muted)", padding: "4px 6px" }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -856,6 +951,195 @@ export default function EventDetails() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Document Preview & Details Modal */}
+          {selectedDoc && (
+            <div className="modal-backdrop" onClick={() => setSelectedDoc(null)}>
+              <div
+                className="modal-container doc-viewer-container"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="modal-header">
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, overflow: "hidden" }}>
+                    <div style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 6,
+                      background: "rgba(99, 102, 241, 0.15)",
+                      color: "var(--color-primary)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0
+                    }}>
+                      <FileText size={20} />
+                    </div>
+                    <div style={{ overflow: "hidden" }}>
+                      <h2 style={{ margin: 0, fontSize: 17, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {selectedDoc.title || selectedDoc.fileName || "Document Details"}
+                      </h2>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap", fontSize: 11.5, color: "var(--text-muted)" }}>
+                        <span>{selectedDoc.fileName || "document.txt"}</span>
+                        <span>•</span>
+                        <span className="badge medium" style={{ fontSize: 10, padding: "2px 6px" }}>
+                          {(selectedDoc.fileType || "TXT").toUpperCase()}
+                        </span>
+                        <span>•</span>
+                        <span className={`badge ${selectedDoc.processed ? "completed" : "pending"}`} style={{ fontSize: 10, padding: "2px 6px" }}>
+                          {selectedDoc.processed ? "RAG Indexed" : "Pending Ingestion"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button className="modal-close-btn" onClick={() => setSelectedDoc(null)}>
+                    ✕
+                  </button>
+                </div>
+
+                {/* Metadata Grid */}
+                <div className="doc-viewer-meta-grid">
+                  <div>
+                    <span className="doc-viewer-meta-label">Event Context</span>
+                    <span className="doc-viewer-meta-val">{selectedDoc.eventId?.name || event?.name || "General"}</span>
+                  </div>
+                  <div>
+                    <span className="doc-viewer-meta-label">Uploaded By</span>
+                    <span className="doc-viewer-meta-val">{selectedDoc.uploadedBy?.name || selectedDoc.uploadedBy?.email || "Organizer"}</span>
+                  </div>
+                  <div>
+                    <span className="doc-viewer-meta-label">Upload Date</span>
+                    <span className="doc-viewer-meta-val">{new Date(selectedDoc.createdAt || Date.now()).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                  </div>
+                  <div>
+                    <span className="doc-viewer-meta-label">RAG Vector Chunks</span>
+                    <span className="doc-viewer-meta-val" style={{ color: selectedDoc.chunks?.length ? "#10b981" : "var(--text-muted)" }}>
+                      {selectedDoc.chunks?.length ? `${selectedDoc.chunks.length} Chunks Embedded` : "0 Chunks"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="doc-viewer-tabs">
+                  <button
+                    type="button"
+                    className={`doc-viewer-tab-btn ${activeDocTab === "content" ? "active" : ""}`}
+                    onClick={() => setActiveDocTab("content")}
+                  >
+                    <BookOpen size={14} />
+                    <span>Document Transcript / Content</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`doc-viewer-tab-btn ${activeDocTab === "chunks" ? "active" : ""}`}
+                    onClick={() => setActiveDocTab("chunks")}
+                  >
+                    <Layers size={14} />
+                    <span>Indexed RAG Chunks ({selectedDoc.chunks?.length || 0})</span>
+                  </button>
+                </div>
+
+                {/* Body Content */}
+                <div className="modal-body" style={{ flex: 1, overflowY: "auto", padding: "18px 24px" }}>
+                  {loadingDocDetails && (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 36, color: "var(--text-muted)" }}>
+                      <Loader2 size={18} className="spin-slow" />
+                      <span>Loading complete document details...</span>
+                    </div>
+                  )}
+
+                  {!loadingDocDetails && activeDocTab === "content" && (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>
+                          Raw Content Stream ({selectedDoc.content ? `${selectedDoc.content.length} characters` : "No text extracted"})
+                        </span>
+                        {selectedDoc.content && (
+                          <button
+                            type="button"
+                            className="secondary-button button-sm"
+                            onClick={() => handleCopyDocContent(selectedDoc.content)}
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, padding: "4px 8px" }}
+                          >
+                            {copiedContent ? <Check size={13} style={{ color: "#10b981" }} /> : <Copy size={13} />}
+                            <span>{copiedContent ? "Copied!" : "Copy Content"}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {selectedDoc.content ? (
+                        <pre className="doc-content-pre">
+                          {selectedDoc.content}
+                        </pre>
+                      ) : (
+                        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                          <FileText size={32} style={{ margin: "0 auto 10px", opacity: 0.5 }} />
+                          <p style={{ margin: 0, fontSize: 14 }}>No extracted text available for this document.</p>
+                          <small style={{ color: "var(--text-muted)" }}>This file may be binary or pending text extraction.</small>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!loadingDocDetails && activeDocTab === "chunks" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      {(!selectedDoc.chunks || selectedDoc.chunks.length === 0) ? (
+                        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                          <Layers size={32} style={{ margin: "0 auto 10px", opacity: 0.5 }} />
+                          <p style={{ margin: 0, fontSize: 14 }}>No RAG chunks indexed yet.</p>
+                          <small style={{ color: "var(--text-muted)" }}>Trigger processing to generate semantic vector embeddings for this document.</small>
+                        </div>
+                      ) : (
+                        selectedDoc.chunks.map((chunk, idx) => (
+                          <div key={chunk._id || idx} className="doc-chunk-card">
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-primary)" }}>
+                                Chunk #{chunk.chunkIndex !== undefined ? chunk.chunkIndex + 1 : idx + 1}
+                              </span>
+                              <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                {chunk.text ? `${chunk.text.length} chars` : ""}
+                              </span>
+                            </div>
+                            <p style={{
+                              margin: 0,
+                              fontSize: 12.5,
+                              lineHeight: 1.55,
+                              color: "var(--text-secondary)",
+                              whiteSpace: "pre-wrap",
+                              fontFamily: "var(--font-mono, monospace)",
+                            }}>
+                              {chunk.text}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="modal-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 24px" }}>
+                  <button
+                    type="button"
+                    className="primary-button button-sm"
+                    onClick={() => handleAskAboutDoc(selectedDoc)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                  >
+                    <Sparkles size={14} />
+                    <span>Ask AI About This Document</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="secondary-button button-sm"
+                    onClick={() => setSelectedDoc(null)}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}

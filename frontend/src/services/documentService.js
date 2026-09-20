@@ -28,6 +28,12 @@ const documentService = {
     return response.data;
   },
 
+  // DELETE /api/documents/:id — Delete a document and its indexed chunks
+  deleteDocument: async (id) => {
+    const response = await api.delete(`/documents/${id}`);
+    return response.data;
+  },
+
   // POST /api/rag/query — Ask questions grounded in uploaded event documents
   // Body: { query, eventId }
   // Response: { answer: string, sources: string[] }

@@ -130,9 +130,21 @@ const getDocumentById = async (req, res) => {
             });
         }
 
+        const chunks = await DocumentChunk.find({
+            $or: [
+                { documentId: document._id },
+                { documentId: document._id.toString() }
+            ]
+        })
+            .sort({ chunkIndex: 1 })
+            .select("-embedding");
+
         res.json({
             success: true,
-            data: document
+            data: {
+                ...document.toObject(),
+                chunks: chunks || []
+            }
         });
 
     } catch (error) {
