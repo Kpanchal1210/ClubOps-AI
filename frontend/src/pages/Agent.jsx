@@ -71,7 +71,8 @@ export default function Agent() {
   }, [eventId]);
 
   /* ── Parse User Command into Proposal ──── */
-  const handleSendCommand = (e) => {
+  /* ── Parse User Command into Proposal or Direct Answer ──── */
+  const handleSendCommand = async (e) => {
     e.preventDefault();
     const trimmed = command.trim();
     if (!trimmed || isProcessing) return;
@@ -87,12 +88,81 @@ export default function Agent() {
     setCommand("");
     setIsProcessing(true);
 
-    setTimeout(() => {
-      setIsProcessing(false);
-      const lower = trimmed.toLowerCase();
+    const lower = trimmed.toLowerCase();
 
-      // 1. Send Notification or Announcement
+    // 1. Check if user is asking a question or querying event status / documents
+    const isQuestion =
+      lower.startsWith("who") ||
+      lower.startsWith("what") ||
+      lower.startsWith("where") ||
+      lower.startsWith("when") ||
+      lower.startsWith("why") ||
+      lower.startsWith("how") ||
+      lower.startsWith("which") ||
+      lower.startsWith("can you") ||
+      lower.startsWith("tell me") ||
+      lower.startsWith("is ") ||
+      lower.startsWith("are ") ||
+      lower.startsWith("list ") ||
+      lower.startsWith("show ") ||
+      lower.endsWith("?") ||
+      lower.includes("status of") ||
+      lower.includes("who done") ||
+      lower.includes("who completed") ||
+      lower.includes("who is") ||
+      lower.includes("who was") ||
+      lower.includes("who has") ||
+      lower.includes("assigned to") ||
+      lower.includes("according to") ||
+      lower.includes("guideline") ||
+      lower.includes("rules") ||
+      lower.includes("policy") ||
+      lower.includes("contract") ||
+      lower.includes("document");
+
+    if (isQuestion) {
+      try {
+        const res = await agentService.sendCommand(trimmed, eventId);
+        const action = res?.data || res;
+        setActions((prev) => [action, ...prev]);
+
+        const answerText =
+          action.result?.answer ||
+          action.result?.message ||
+          "I checked the event records and found no matching details.";
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `asst-${Date.now()}`,
+            sender: "assistant",
+            text: answerText,
+            actionDetail: action,
+            sources: action.result?.sources || [],
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+      } catch (err) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `asst-${Date.now()}`,
+            sender: "assistant",
+            text: `Error: ${err.response?.data?.message || err.message || "Failed to query AI assistant."}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
+    // 2. Action Proposals (Allow user to confirm before mutating database)
+    setTimeout(async () => {
+      // Notification / Announcement
       if (lower.includes("notif") || lower.includes("announc") || lower.includes("broadcast") || lower.includes("alert")) {
+        setIsProcessing(false);
         const recipientMatch = trimmed.match(/to\s+([A-Za-z0-9_\s]+?)(?:\s+that|\s+about|\s+to|$)/i);
         const recipient = recipientMatch ? recipientMatch[1].trim() : (lower.includes("all") ? "all" : "team");
         const messageMatch = trimmed.match(/(?:that|about|message:?)\s+(.+)$/i);
@@ -119,8 +189,9 @@ export default function Agent() {
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
-      } else if (lower.includes("mark") || lower.includes("update") || (lower.includes("task") && lower.includes("complet"))) {
-        // 2. Update Task
+      } else if (lower.startsWith("mark") || lower.startsWith("update") || (lower.includes("task") && lower.includes("complet"))) {
+        // Update Task
+        setIsProcessing(false);
         const proposal = {
           id: `prop-${Date.now()}`,
           type: "update_task",
@@ -142,7 +213,8 @@ export default function Agent() {
           },
         ]);
       } else if (lower.includes("risk") || lower.includes("flag")) {
-        // 3. Create Risk
+        // Create Risk
+        setIsProcessing(false);
         const proposal = {
           id: `prop-${Date.now()}`,
           type: "risk",
@@ -162,41 +234,9 @@ export default function Agent() {
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
-      } else if (
-        lower.startsWith("what") ||
-        lower.startsWith("how") ||
-        lower.startsWith("where") ||
-        lower.startsWith("when") ||
-        lower.startsWith("why") ||
-        lower.includes("according to") ||
-        lower.includes("guideline") ||
-        lower.includes("policy") ||
-        lower.includes("document") ||
-        lower.includes("contract") ||
-        lower.includes("rules")
-      ) {
-        // 4. Query RAG Knowledge
-        const proposal = {
-          id: `prop-${Date.now()}`,
-          type: "knowledge",
-          title: trimmed,
-          query: trimmed,
-          originalCommand: trimmed,
-        };
-
-        setPendingProposal(proposal);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `asst-${Date.now()}`,
-            sender: "assistant",
-            text: "I can query the RAG document archive and synthesize an answer grounded in your event files:",
-            proposal,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          },
-        ]);
-      } else {
-        // 5. Default: Create Task proposal
+      } else if (lower.includes("create task") || lower.includes("assign ") || lower.includes("add task")) {
+        // Create Task
+        setIsProcessing(false);
         const assigneeMatch = trimmed.match(/for\s+([A-Za-z]+)/i) || trimmed.match(/assign\s+([A-Za-z]+)/i);
         const assignee = assigneeMatch ? assigneeMatch[1] : "Organizer";
 
@@ -221,8 +261,44 @@ export default function Agent() {
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
+      } else {
+        // 3. Fallback: Send directly to backend AI agent
+        try {
+          const res = await agentService.sendCommand(trimmed, eventId);
+          const action = res?.data || res;
+          setActions((prev) => [action, ...prev]);
+
+          const resultText =
+            action.result?.answer ||
+            action.result?.message ||
+            `✓ Executed ${action.tool || "action"}. System records updated.`;
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `asst-${Date.now()}`,
+              sender: "assistant",
+              text: resultText,
+              actionDetail: action,
+              sources: action.result?.sources || [],
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            },
+          ]);
+        } catch (err) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `asst-${Date.now()}`,
+              sender: "assistant",
+              text: `Error executing command: ${err.response?.data?.message || err.message || "Failed to reach agent service."}`,
+              timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            },
+          ]);
+        } finally {
+          setIsProcessing(false);
+        }
       }
-    }, 550);
+    }, 400);
   };
 
   /* ── Confirm Proposed Action ─────────────── */
@@ -345,8 +421,8 @@ export default function Agent() {
                   <div className="ai-message-bubble">
                     <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{msg.text}</p>
 
-                    {/* Grounded RAG Documents */}
-                    {msg.actionDetail?.result?.sources?.length > 0 && (
+                    {/* Sources Badge if RAG / Knowledge intent or direct question */}
+                    {((msg.actionDetail?.intent === "QUERY_KNOWLEDGE" && msg.actionDetail.result?.sources?.length > 0) || (msg.sources && msg.sources.length > 0)) && (
                       <div
                         style={{
                           marginTop: 10,
@@ -357,12 +433,12 @@ export default function Agent() {
                         }}
                       >
                         <strong style={{ color: "var(--color-primary)", display: "block", marginBottom: 4 }}>
-                          Grounded in Event Documents:
+                          Grounded in Event Records & Documents:
                         </strong>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {msg.actionDetail.result.sources.map((s, idx) => (
+                          {(msg.sources || msg.actionDetail.result.sources).map((s, idx) => (
                             <span key={idx} className="badge low" style={{ fontSize: 11 }}>
-                              📄 {s.fileName || s.title || `Document ${idx + 1}`}
+                              {s.type === "task" ? `✓ Task: ${s.title}` : `📄 ${s.fileName || s.title || `Document ${idx + 1}`}`}
                             </span>
                           ))}
                         </div>
