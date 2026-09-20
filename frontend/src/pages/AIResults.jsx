@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Sparkles,
   CheckCircle2,
@@ -13,32 +13,118 @@ import {
   Plus,
   Share2,
   Check,
+  Clock,
+  ChevronRight,
 } from "lucide-react";
 
 import { safeStorage } from "../utils/storage";
 import { useEvent } from "../context/EventContext";
+import meetingService from "../services/meetingService";
+import Loading from "../components/Loading";
 
 export default function AIResults() {
   const navigate = useNavigate();
-  const { currentEventId } = useEvent();
-  const [result, setResult] = useState(() => safeStorage.getJSON("aiResult"));
+  const [searchParams] = useSearchParams();
+  const meetingIdParam = searchParams.get("meetingId");
+  const eventIdParam = searchParams.get("eventId");
+
+  const { currentEventId, currentEvent } = useEvent();
+  const effectiveEventId = eventIdParam || currentEventId;
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(() => {
+    if (meetingIdParam) {
+      const cachedMeeting = safeStorage.getJSON(`meeting_analysis_${meetingIdParam}`);
+      if (cachedMeeting) return cachedMeeting;
+    }
+    return safeStorage.getJSON("aiResult");
+  });
+
   const [addedTasks, setAddedTasks] = useState({});
   const [addedRisks, setAddedRisks] = useState({});
 
   useEffect(() => {
-    const saved = safeStorage.getJSON("aiResult");
-    if (saved) {
-      setResult(saved);
-    }
-  }, []);
+    const fetchAnalysis = async () => {
+      // 1. Direct meeting analysis fetch by meetingId
+      if (meetingIdParam) {
+        const cached = safeStorage.getJSON(`meeting_analysis_${meetingIdParam}`);
+        if (cached) {
+          setResult(cached);
+        } else {
+          setLoading(true);
+        }
+
+        try {
+          const res = await meetingService.getMeetingAnalysis(meetingIdParam);
+          const data = res?.data || res;
+          if (data) {
+            setResult(data);
+            safeStorage.setJSON(`meeting_analysis_${meetingIdParam}`, data);
+            safeStorage.setJSON("aiResult", data);
+          }
+        } catch (err) {
+          console.warn("Failed to fetch meeting analysis:", err);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
+      // 2. Check saved aiResult
+      const saved = safeStorage.getJSON("aiResult");
+      if (saved) {
+        setResult(saved);
+        return;
+      }
+
+      // 3. Fallback: Automatically load the latest analyzed meeting for current event
+      if (effectiveEventId) {
+        setLoading(true);
+        try {
+          const meetingsRes = await meetingService.getEventMeetings(effectiveEventId);
+          const list = meetingsRes?.data?.meetings || meetingsRes?.data || meetingsRes || [];
+          const candidateMeeting = Array.isArray(list)
+            ? list.find((m) => m.processedByAI || m.transcript)
+            : null;
+
+          if (candidateMeeting) {
+            const mId = candidateMeeting._id || candidateMeeting.id;
+            const res = await meetingService.getMeetingAnalysis(mId);
+            const data = res?.data || res;
+            if (data) {
+              setResult(data);
+              safeStorage.setJSON(`meeting_analysis_${mId}`, data);
+              safeStorage.setJSON("aiResult", data);
+            }
+          }
+        } catch (err) {
+          console.warn("Auto-fallback meeting fetch error:", err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchAnalysis();
+  }, [meetingIdParam, effectiveEventId]);
 
   const handleAddTaskToRegister = (idx, task) => {
     setAddedTasks((prev) => ({ ...prev, [idx]: true }));
+    if (effectiveEventId) {
+      safeStorage.removeItem(`tasks_cache_${effectiveEventId}`);
+    }
   };
 
   const handleAddRiskToRegister = (idx, risk) => {
     setAddedRisks((prev) => ({ ...prev, [idx]: true }));
+    if (effectiveEventId) {
+      safeStorage.removeItem(`risks_cache_${effectiveEventId}`);
+    }
   };
+
+  if (loading && !result) {
+    return <Loading type="cards" count={3} message="Extracting tasks, risks, and decisions with Gemini AI..." />;
+  }
 
   if (!result) {
     return (
@@ -62,7 +148,7 @@ export default function AIResults() {
           </div>
           <h3>No AI Analysis Result Available</h3>
           <p>Process a meeting transcript in the Meetings tab to let AI extract tasks, risks, and decisions.</p>
-          <Link to="/meetings" className="primary-button">
+          <Link to={effectiveEventId ? `/meetings?eventId=${effectiveEventId}` : "/meetings"} className="primary-button">
             Go to Meetings
           </Link>
         </div>
@@ -71,39 +157,47 @@ export default function AIResults() {
   }
 
   const data = result?.analysis || result?.data || result;
+  const meetingInfo = result?.meeting || data?.meeting;
 
   return (
     <div>
       {/* ── Page Header ── */}
       <div className="page-header">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <span className="status-pulse" />
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-ai-text)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              AI Intelligence Pipeline
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <Link
+              to={effectiveEventId ? `/meetings?eventId=${effectiveEventId}` : "/meetings"}
+              style={{ fontSize: 12.5, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}
+            >
+              Meetings <ChevronRight size={13} />
+            </Link>
+            <span className="badge completed" style={{ textTransform: "uppercase", fontSize: 11 }}>
+              <Sparkles size={11} /> Gemini 3.6 Flash
             </span>
           </div>
-          <h1>AI Meeting Analysis</h1>
-          <p>Automated breakdown separating conversational understanding from generated system records.</p>
+
+          <h1>{meetingInfo?.title ? `AI Analysis: ${meetingInfo.title}` : "AI Meeting Analysis"}</h1>
+          <p>Automated intelligence breakdown separating conversational takeaways from generated system tasks and risks.</p>
         </div>
 
         <div className="page-header-actions">
-          <Link to="/meetings" className="secondary-button">
+          <Link to={effectiveEventId ? `/meetings?eventId=${effectiveEventId}` : "/meetings"} className="secondary-button">
             <RefreshCw size={14} />
-            <span>Process Another Meeting</span>
+            <span>All Meetings</span>
           </Link>
 
-          {!DEV_MODE && (
-            <button
-              className="ghost-button"
-              onClick={() => {
-                safeStorage.removeItem("aiResult");
-                setResult(null);
-              }}
-            >
-              Clear
-            </button>
-          )}
+          <button
+            className="ghost-button"
+            onClick={() => {
+              safeStorage.removeItem("aiResult");
+              if (meetingIdParam) {
+                safeStorage.removeItem(`meeting_analysis_${meetingIdParam}`);
+              }
+              setResult(null);
+            }}
+          >
+            Clear
+          </button>
         </div>
       </div>
 
@@ -200,81 +294,106 @@ export default function AIResults() {
         >
           <CheckSquare size={18} style={{ color: "var(--color-success)" }} />
           <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-success-text)" }}>
-            What The System Created
+            What The System Created & Distributed
           </h2>
         </div>
 
-        {/* Extracted Tasks */}
+        {/* Extracted Tasks with Auto-Distribution */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <h3 style={{ fontSize: 15, margin: 0, fontWeight: 700 }}>
-              Extracted Actionable Tasks ({data?.tasks?.length || 0})
+              Auto-Distributed Tasks ({data?.tasks?.length || 0})
             </h3>
-            <Link to={currentEventId ? `/tasks?eventId=${currentEventId}` : "/tasks"} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-primary)" }}>
+            <Link to={effectiveEventId ? `/tasks?eventId=${effectiveEventId}` : "/tasks"} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-primary)" }}>
               View in Task Board →
             </Link>
           </div>
 
           <div className="card-grid">
-            {data?.tasks?.map((task, i) => (
-              <div key={i} className="task-card">
-                <div className="card-top">
-                  <div>
-                    <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                      <span className={`badge ${task.priority || "high"}`}>
-                        {task.priority || "high"} priority
-                      </span>
-                      <span className="badge ai-badge">
-                        <Sparkles size={11} />
-                        Auto-Extracted
-                      </span>
+            {data?.tasks?.map((task, i) => {
+              const assigneeName =
+                task.assignedTo?.name ||
+                task.assigneeName ||
+                (typeof task.assignedTo === "string" && !task.assignedTo.startsWith("6") ? task.assignedTo : null) ||
+                (typeof task.ownerId === "object" ? task.ownerId?.name : null) ||
+                (typeof task.ownerId === "string" && !task.ownerId.startsWith("6") ? task.ownerId : null) ||
+                "Auto-Distributed Member";
+
+              const assigneeRole = task.assignedTo?.role || task.role || null;
+
+              return (
+                <div key={i} className="task-card">
+                  <div className="card-top">
+                    <div>
+                      <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+                        <span className={`badge ${task.priority || "high"}`}>
+                          {task.priority || "high"} priority
+                        </span>
+                        <span className="badge ai-badge">
+                          <Sparkles size={11} />
+                          Auto-Distributed
+                        </span>
+                      </div>
+                      <h3>{task.title}</h3>
                     </div>
-                    <h3>{task.title}</h3>
                   </div>
-                </div>
 
-                <p className="card-description">
-                  {task.description || "Generated from transcript key points."}
-                </p>
+                  <p className="card-description">
+                    {task.description || "Extracted from meeting discussion."}
+                  </p>
 
-                <div className="task-meta">
-                  <div className="task-meta-row">
-                    <span className="task-meta-item">
-                      <User size={13} />
-                      Lead: <strong>{task.ownerId ? `Assigned (${task.ownerId})` : "Rahul Patel"}</strong>
-                    </span>
-
-                    {task.deadline && (
+                  <div className="task-meta">
+                    <div className="task-meta-row">
                       <span className="task-meta-item">
-                        <CalendarDays size={13} />
-                        Due: <strong>{task.deadline}</strong>
+                        <User size={13} />
+                        Assignee:{" "}
+                        <strong style={{ color: "var(--text-primary)" }}>
+                          {assigneeName}
+                        </strong>
+                        {assigneeRole && (
+                          <span className="badge" style={{ fontSize: 10, padding: "1px 6px", marginLeft: 4, textTransform: "capitalize" }}>
+                            {assigneeRole}
+                          </span>
+                        )}
                       </span>
-                    )}
+
+                      {task.deadline && (
+                        <span className="task-meta-item">
+                          <CalendarDays size={13} />
+                          Due:{" "}
+                          <strong>
+                            {typeof task.deadline === "string" && task.deadline.includes("T")
+                              ? new Date(task.deadline).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                              : String(task.deadline)}
+                          </strong>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="card-actions">
+                    <button
+                      className="secondary-button button-sm"
+                      style={{ width: "100%" }}
+                      onClick={() => handleAddTaskToRegister(i, task)}
+                      disabled={addedTasks[i]}
+                    >
+                      {addedTasks[i] ? (
+                        <>
+                          <Check size={13} style={{ color: "var(--color-success)" }} />
+                          Confirmed in Task Board
+                        </>
+                      ) : (
+                        <>
+                          <Check size={13} />
+                          Active in Task Board
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
-
-                <div className="card-actions">
-                  <button
-                    className="secondary-button button-sm"
-                    style={{ width: "100%" }}
-                    onClick={() => handleAddTaskToRegister(i, task)}
-                    disabled={addedTasks[i]}
-                  >
-                    {addedTasks[i] ? (
-                      <>
-                        <Check size={13} style={{ color: "var(--color-success)" }} />
-                        Synced to Active Tasks
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={13} />
-                        Confirm & Save to Tasks
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -284,7 +403,7 @@ export default function AIResults() {
             <h3 style={{ fontSize: 15, margin: 0, fontWeight: 700 }}>
               Detected Liabilities & Risks ({data?.risks?.length || 0})
             </h3>
-            <Link to={currentEventId ? `/risks?eventId=${currentEventId}` : "/risks"} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-primary)" }}>
+            <Link to={effectiveEventId ? `/risks?eventId=${effectiveEventId}` : "/risks"} style={{ fontSize: 12.5, fontWeight: 600, color: "var(--color-primary)" }}>
               View in Risk Register →
             </Link>
           </div>
@@ -345,12 +464,12 @@ export default function AIResults() {
                     {addedRisks[i] ? (
                       <>
                         <Check size={13} style={{ color: "var(--color-success)" }} />
-                        Synced to Risk Register
+                        Active in Risk Register
                       </>
                     ) : (
                       <>
-                        <Plus size={13} />
-                        Add to Risk Register
+                        <Check size={13} />
+                        Active in Risk Register
                       </>
                     )}
                   </button>

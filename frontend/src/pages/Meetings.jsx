@@ -18,6 +18,7 @@ import {
   ArrowRight,
   User,
   Bot,
+  Loader2,
 } from "lucide-react";
 
 import meetingService from "../services/meetingService";
@@ -113,6 +114,51 @@ David: I will coordinate the AV team and run sound checks.`,
     });
   };
 
+  const [analyzingMeetingId, setAnalyzingMeetingId] = useState(null);
+
+  const handleViewAnalysis = async (meeting) => {
+    const mId = meeting._id || meeting.id;
+    setAnalyzingMeetingId(mId);
+
+    try {
+      // First attempt to fetch existing analysis
+      const res = await meetingService.getMeetingAnalysis(mId);
+      const data = res?.data || res;
+      if (data && data.analysis) {
+        safeStorage.setJSON("aiResult", data);
+        safeStorage.setJSON(`meeting_analysis_${mId}`, data);
+        navigate(`/ai-results?meetingId=${mId}&eventId=${effectiveEventId}`);
+        return;
+      }
+    } catch (err) {
+      console.warn("Direct analysis fetch failed, falling back to process:", err);
+    }
+
+    try {
+      // Trigger AI analysis with Gemini
+      const procRes = await meetingService.processMeeting(mId);
+      const procData = procRes?.data || procRes;
+      if (procData) {
+        safeStorage.setJSON("aiResult", procData);
+        safeStorage.setJSON(`meeting_analysis_${mId}`, procData);
+        // Also update local meeting summary in UI
+        setMeetings((prev) =>
+          prev.map((m) =>
+            (m._id || m.id) === mId
+              ? { ...m, summary: procData.analysis?.summary || m.summary, processedByAI: true }
+              : m
+          )
+        );
+        navigate(`/ai-results?meetingId=${mId}&eventId=${effectiveEventId}`);
+      }
+    } catch (procErr) {
+      console.error("AI Analysis failed:", procErr);
+      alert(procErr.response?.data?.message || procErr.message || "Failed to analyze meeting.");
+    } finally {
+      setAnalyzingMeetingId(null);
+    }
+  };
+
   const createMeeting = async (e) => {
     e.preventDefault();
     setProcessing(true);
@@ -133,7 +179,19 @@ David: I will coordinate the AV team and run sound checks.`,
         try {
           const processResponse = await meetingService.processMeeting(meetingId);
           const processed = processResponse?.data || processResponse;
-          safeStorage.setItem("aiResult", JSON.stringify(processed));
+          safeStorage.setJSON("aiResult", processed);
+          safeStorage.setJSON(`meeting_analysis_${meetingId}`, processed);
+          setMeetings((prev) => [
+            {
+              ...data,
+              summary: processed.analysis?.summary || data.summary,
+              processedByAI: true,
+            },
+            ...prev,
+          ]);
+          setShowSubmitModal(false);
+          navigate(`/ai-results?meetingId=${meetingId}&eventId=${effectiveEventId}`);
+          return;
         } catch (processErr) {
           console.warn("AI processing error:", processErr);
         }
@@ -141,7 +199,7 @@ David: I will coordinate the AV team and run sound checks.`,
 
       setMeetings((prev) => [data, ...prev]);
       setShowSubmitModal(false);
-      navigate("/ai-results");
+      navigate(`/ai-results?meetingId=${meetingId || ""}&eventId=${effectiveEventId}`);
     } catch (err) {
       setFormError(err.response?.data?.message || err.message || "Failed to create meeting.");
     } finally {
@@ -279,10 +337,23 @@ David: I will coordinate the AV team and run sound checks.`,
                       View Transcript
                     </button>
 
-                    <Link to="/ai-results" className="primary-button button-sm">
-                      <Sparkles size={13} />
-                      View Analysis
-                    </Link>
+                    <button
+                      className="primary-button button-sm"
+                      onClick={() => handleViewAnalysis(m)}
+                      disabled={analyzingMeetingId === (m._id || m.id)}
+                    >
+                      {analyzingMeetingId === (m._id || m.id) ? (
+                        <>
+                          <Loader2 size={13} className="spin" />
+                          <span>Analyzing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={13} />
+                          <span>View Analysis</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
 

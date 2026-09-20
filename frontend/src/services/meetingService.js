@@ -19,6 +19,12 @@ const meetingService = {
     return response.data;
   },
 
+  // GET /api/meetings/:id/analysis — Get AI analysis for a meeting
+  getMeetingAnalysis: async (id) => {
+    const response = await api.get(`/meetings/${id}/analysis`);
+    return response.data;
+  },
+
   // GET /api/events/:eventId/meetings — Get all meetings for an event
   getEventMeetings: async (eventId) => {
     const response = await api.get(`/events/${eventId}/meetings`);

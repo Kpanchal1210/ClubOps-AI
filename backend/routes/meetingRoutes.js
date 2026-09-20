@@ -9,7 +9,8 @@ const {
 } = require("../controllers/meetingController");
 
 const {
-    analyzeMeeting
+    analyzeMeeting,
+    getMeetingAnalysis
 } = require("../controllers/aiAnalysisController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -35,9 +36,14 @@ router.delete("/:meetingId", protect, deleteMeeting);
 
 
 // --------------------------------------------------
-// AI Meeting Processing
-// Both endpoints call the same controller
+// AI Meeting Analysis & Processing
 // --------------------------------------------------
+
+router.get(
+    "/:meetingId/analysis",
+    protect,
+    getMeetingAnalysis
+);
 
 router.post(
     "/:meetingId/process",
