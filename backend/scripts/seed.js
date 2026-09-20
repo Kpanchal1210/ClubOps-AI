@@ -751,7 +751,56 @@ First aid kits and automated external defibrillators (AEDs) are stationed in the
       },
     ]);
 
-    console.log(`✓ Uploaded 3 meeting transcript documents + 1 policy document with indexed RAG chunks.`);
+    // Document 5: Judging Criteria & Evaluation Rubric PDF
+    const doc5Content = `AI HACKATHON 2026 — OFFICIAL JUDGING CRITERIA & EVALUATION RUBRIC
+Grand Campus Hall, Building B — Main Pavilion
+Review Committee: Industry Sponsors & Faculty Mentors
+
+1. Innovation & Technical Complexity (30% Weight):
+Projects must implement autonomous agent workflows, local LLMs, or robotic control pipelines. Submissions will be evaluated on architectural design, algorithmic depth, and practical novelty. Pure UI mockups without functional logic or backend orchestration will receive a maximum technical score of 10/30.
+
+2. Operational Feasibility & Real-world Impact (25% Weight):
+Solutions must demonstrate measurable business or humanitarian utility. Teams must provide a working demonstration resolving real club operations, disaster response, or autonomous fleet scheduling.
+
+3. Code Quality, Documentation & Security (25% Weight):
+Repositories must contain clean Git commit histories, comprehensive README setup instructions, and zero committed API credentials. Projects exposing plaintext secrets or unauthenticated administrative endpoints will incur a 15-point penalty.
+
+4. Pitch Presentation & Demo Readiness (20% Weight):
+Each finalist team is allocated strictly 4 minutes for live demonstration followed by 2 minutes of Q&A with the judge panel. Slide decks must not exceed 6 slides. Live rehearsals in Stage Hall B conclude at 4:30 PM Sunday.`;
+
+    const doc5 = await Document.create({
+      clubId: club._id,
+      eventId: eventOngoing._id,
+      title: "AI Hackathon 2026 — Judging Criteria & Rubric Guidelines",
+      fileName: "AI_Hackathon_2026_Judging_Criteria_and_Rubric.pdf",
+      fileType: "pdf",
+      content: doc5Content,
+      processed: true,
+      uploadedBy: organizerUser._id,
+    });
+
+    await DocumentChunk.create([
+      {
+        documentId: doc5._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc5.fileName,
+        chunkIndex: 0,
+        text: `JUDGING RUBRIC - SECTION 1 & 2 (AI Hackathon 2026)\n1. Innovation & Technical Complexity (30% Weight):\nProjects must implement autonomous agent workflows, local LLMs, or robotic control pipelines. Pure UI mockups without functional logic receive a maximum score of 10/30.\n2. Operational Feasibility & Real-world Impact (25% Weight):\nSolutions must demonstrate measurable business or humanitarian utility with live working demos for club operations or autonomous fleet scheduling.`,
+        metadata: { title: doc5.title },
+      },
+      {
+        documentId: doc5._id,
+        clubId: club._id,
+        eventId: eventOngoing._id,
+        fileName: doc5.fileName,
+        chunkIndex: 1,
+        text: `JUDGING RUBRIC - SECTION 3 & 4 (AI Hackathon 2026)\n3. Code Quality, Documentation & Security (25% Weight):\nRepositories must contain clean Git commits, README setup instructions, and zero committed API credentials. Plaintext secrets or open admin endpoints incur a 15-point penalty.\n4. Pitch Presentation & Demo Readiness (20% Weight):\nFinalist teams get strictly 4 minutes for live demo and 2 minutes of Q&A. Maximum 6 slides. Stage Hall B rehearsals conclude at 4:30 PM Sunday.`,
+        metadata: { title: doc5.title },
+      },
+    ]);
+
+    console.log(`✓ Uploaded 3 meeting transcript documents + 2 policy/guideline documents with indexed RAG chunks.`);
 
     console.log("\n==========================================================");
     console.log("             SEED DATA GENERATION COMPLETE                ");
