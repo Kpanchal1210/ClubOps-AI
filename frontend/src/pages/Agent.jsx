@@ -162,8 +162,41 @@ export default function Agent() {
             timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           },
         ]);
+      } else if (
+        lower.startsWith("what") ||
+        lower.startsWith("how") ||
+        lower.startsWith("where") ||
+        lower.startsWith("when") ||
+        lower.startsWith("why") ||
+        lower.includes("according to") ||
+        lower.includes("guideline") ||
+        lower.includes("policy") ||
+        lower.includes("document") ||
+        lower.includes("contract") ||
+        lower.includes("rules")
+      ) {
+        // 4. Query RAG Knowledge
+        const proposal = {
+          id: `prop-${Date.now()}`,
+          type: "knowledge",
+          title: trimmed,
+          query: trimmed,
+          originalCommand: trimmed,
+        };
+
+        setPendingProposal(proposal);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `asst-${Date.now()}`,
+            sender: "assistant",
+            text: "I can query the RAG document archive and synthesize an answer grounded in your event files:",
+            proposal,
+            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          },
+        ]);
       } else {
-        // 4. Default: Create Task proposal
+        // 5. Default: Create Task proposal
         const assigneeMatch = trimmed.match(/for\s+([A-Za-z]+)/i) || trimmed.match(/assign\s+([A-Za-z]+)/i);
         const assignee = assigneeMatch ? assigneeMatch[1] : "Organizer";
 
@@ -201,12 +234,19 @@ export default function Agent() {
       const action = res?.data || res;
       setActions((prev) => [action, ...prev]);
       setPendingProposal(null);
+
+      let successText = `✓ Successfully executed: "${proposal.title}". System records updated.`;
+      if (action.intent === "QUERY_KNOWLEDGE" && action.result?.answer) {
+        successText = action.result.answer;
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id: `asst-${Date.now()}`,
           sender: "assistant",
-          text: `✓ Successfully executed: "${proposal.title}". System records updated.`,
+          text: successText,
+          actionDetail: action,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -303,7 +343,31 @@ export default function Agent() {
               {messages.map((msg) => (
                 <div key={msg.id} className={`ai-message ${msg.sender}`}>
                   <div className="ai-message-bubble">
-                    <p style={{ margin: 0 }}>{msg.text}</p>
+                    <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{msg.text}</p>
+
+                    {/* Grounded RAG Documents */}
+                    {msg.actionDetail?.result?.sources?.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          paddingTop: 8,
+                          borderTop: "1px dashed var(--border-default)",
+                          fontSize: 12,
+                          color: "var(--text-secondary)",
+                        }}
+                      >
+                        <strong style={{ color: "var(--color-primary)", display: "block", marginBottom: 4 }}>
+                          Grounded in Event Documents:
+                        </strong>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {msg.actionDetail.result.sources.map((s, idx) => (
+                            <span key={idx} className="badge low" style={{ fontSize: 11 }}>
+                              📄 {s.fileName || s.title || `Document ${idx + 1}`}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Proposal Confirmation Card */}
                     {msg.proposal && (
@@ -358,7 +422,9 @@ export default function Agent() {
                               disabled={isProcessing}
                             >
                               <Check size={13} />
-                              {msg.proposal.type === "notification"
+                              {msg.proposal.type === "knowledge"
+                                ? "Confirm & Search Documents"
+                                : msg.proposal.type === "notification"
                                 ? "Confirm & Dispatch"
                                 : msg.proposal.type === "update_task"
                                 ? "Confirm & Update"
@@ -453,6 +519,7 @@ export default function Agent() {
                   "Mark the contact sponsors task as completed",
                   "Flag a high severity risk — auditorium confirmation pending",
                   "Send an announcement to all that final rehearsal starts in 1 hour",
+                  "According to our documents, what are the venue safety guidelines?",
                   "Send notification to Maya that stage setup begins at 3pm",
                   "Report a medium risk: insufficient volunteer drivers for logistics",
                 ].map((prompt, idx) => (

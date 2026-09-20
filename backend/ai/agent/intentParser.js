@@ -34,6 +34,7 @@ CREATE_TASK
 UPDATE_TASK
 CREATE_RISK
 SEND_NOTIFICATION
+QUERY_KNOWLEDGE
 UNKNOWN
 
 Use exactly this structure:
@@ -80,6 +81,12 @@ For SEND_NOTIFICATION, parameters may contain:
     "priority": "low | medium | high | critical"
 }
 
+For QUERY_KNOWLEDGE, parameters may contain:
+
+{
+    "query": "the factual question, guidelines query, contract lookup, or document search topic"
+}
+
 Important rules:
 
 1. Do NOT invent MongoDB IDs.
@@ -96,8 +103,9 @@ Important rules:
    low, medium, high, critical
 10. Risk probability must be one of:
    low, medium, high
-11. If the command does not match any supported intent, use UNKNOWN.
-12. Return valid JSON only.
+11. If the user is asking a question about event documents, policies, guidelines, venue rules, schedules, or contracts, return QUERY_KNOWLEDGE.
+12. If the command does not match any supported intent, use UNKNOWN.
+13. Return valid JSON only.
 
 User command:
 
