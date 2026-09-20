@@ -706,12 +706,26 @@ Krish: Decision: Showcase archive closed with zero outstanding liabilities. Comm
     ]);
 
     // Document 4: Venue Safety Guidelines PDF
+    const doc4Content = `VENUE SAFETY AND OPERATIONS GUIDELINES 2026
+Facility: Grand Campus Hall, Building B & Engineering Complex
+Author: Campus Safety & Facilities Committee
+
+1. Electrical Safety and Cabling:
+All electrical cables crossing pedestrian walkways must be covered with rubber cable ramps. Main stage sound levels must remain strictly below 85 decibels after 10:00 PM per campus noise curfew regulations. Emergency exit doors must remain unobstructed by tables or displays at all times. High-voltage power feeds for AV lighting and keynote projectors must be inspected and certified by campus facilities electricians prior to energizing.
+
+2. Catering & Dietary Compliance:
+Hot food catering deliveries must be inspected for temperature compliance upon arrival (hot holding at 60°C or higher). Vegan, vegetarian, halal, and gluten-free meals must be labeled and separated at the serving tables to prevent allergen cross-contamination. Food waste must be disposed of in compost bins located outside the service entrance. All catering vendor contracts must receive signed approval from university procurement prior to event commencement.
+
+3. Emergency Evacuation and Protocols:
+First aid kits and automated external defibrillators (AEDs) are stationed in the main lobby and behind Stage B. In the event of a fire alarm or emergency evacuation, all volunteers must direct attendees through the nearest marked illuminated exit routes toward Assembly Area 4 (North Quad). Volunteer security coordinators must maintain two-way radio contact with campus dispatch at all times during active event hours.`;
+
     const doc4 = await Document.create({
       clubId: club._id,
       eventId: eventOngoing._id,
       title: "Venue Safety and Operations Guidelines 2026",
       fileName: "Venue_Safety_and_Operations_Guidelines_2026.pdf",
       fileType: "pdf",
+      content: doc4Content,
       processed: true,
       uploadedBy: organizerUser._id,
     });

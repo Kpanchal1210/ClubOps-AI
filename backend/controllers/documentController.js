@@ -139,10 +139,17 @@ const getDocumentById = async (req, res) => {
             .sort({ chunkIndex: 1 })
             .select("-embedding");
 
+        const docObj = document.toObject();
+
+        // If content is empty or undefined but chunks exist, assemble full content from indexed chunks
+        if ((!docObj.content || !docObj.content.trim()) && chunks && chunks.length > 0) {
+            docObj.content = chunks.map(c => c.text).join("\n\n");
+        }
+
         res.json({
             success: true,
             data: {
-                ...document.toObject(),
+                ...docObj,
                 chunks: chunks || []
             }
         });

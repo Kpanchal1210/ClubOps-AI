@@ -1081,38 +1081,41 @@ export default function EventDetails() {
                     </div>
                   )}
 
-                  {!loadingDocDetails && activeDocTab === "content" && (
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                        <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>
-                          Raw Content Stream ({selectedDoc.content ? `${selectedDoc.content.length} characters` : "No text extracted"})
-                        </span>
-                        {selectedDoc.content && (
-                          <button
-                            type="button"
-                            className="secondary-button button-sm"
-                            onClick={() => handleCopyDocContent(selectedDoc.content)}
-                            style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, padding: "4px 8px" }}
-                          >
-                            {copiedContent ? <Check size={13} style={{ color: "#10b981" }} /> : <Copy size={13} />}
-                            <span>{copiedContent ? "Copied!" : "Copy Content"}</span>
-                          </button>
+                  {!loadingDocDetails && activeDocTab === "content" && (() => {
+                    const docText = selectedDoc.content || (selectedDoc.chunks && selectedDoc.chunks.length > 0 ? selectedDoc.chunks.map((c) => c.text).join("\n\n") : "");
+                    return (
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                          <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>
+                            Document Content Stream ({docText ? `${docText.length} characters` : "No text extracted"})
+                          </span>
+                          {docText && (
+                            <button
+                              type="button"
+                              className="secondary-button button-sm"
+                              onClick={() => handleCopyDocContent(docText)}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, padding: "4px 8px" }}
+                            >
+                              {copiedContent ? <Check size={13} style={{ color: "#10b981" }} /> : <Copy size={13} />}
+                              <span>{copiedContent ? "Copied!" : "Copy Content"}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {docText ? (
+                          <pre className="doc-content-pre">
+                            {docText}
+                          </pre>
+                        ) : (
+                          <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                            <FileText size={32} style={{ margin: "0 auto 10px", opacity: 0.5 }} />
+                            <p style={{ margin: 0, fontSize: 14 }}>No extracted text available for this document.</p>
+                            <small style={{ color: "var(--text-muted)" }}>This file may be binary or pending text extraction.</small>
+                          </div>
                         )}
                       </div>
-
-                      {selectedDoc.content ? (
-                        <pre className="doc-content-pre">
-                          {selectedDoc.content}
-                        </pre>
-                      ) : (
-                        <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
-                          <FileText size={32} style={{ margin: "0 auto 10px", opacity: 0.5 }} />
-                          <p style={{ margin: 0, fontSize: 14 }}>No extracted text available for this document.</p>
-                          <small style={{ color: "var(--text-muted)" }}>This file may be binary or pending text extraction.</small>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {!loadingDocDetails && activeDocTab === "chunks" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
