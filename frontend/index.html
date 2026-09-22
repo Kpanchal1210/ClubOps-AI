@@ -12,6 +12,18 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Space+Grotesk:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      (function () {
+        var path = window.location.pathname;
+        var repo = "/ClubOps-AI";
+        if (path.indexOf(repo) === 0 && path.length > repo.length) {
+          var sub = path.substring(repo.length);
+          if (sub && sub !== "/" && sub !== "/index.html") {
+            window.location.replace(repo + "/#" + sub + window.location.search);
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -288,7 +288,7 @@ Organizer: Great. Let's make sure the campus Wi-Fi repeaters are active before a
   console.log("8. Testing Conversational AI Agent via POST /api/agent/command...");
   const agentRes = await authClient.post("/agent/command", {
     eventId,
-    command: "Assign Marcus to test stage microphones by Thursday 3pm",
+    command: `Assign ${user.name.split(" ")[0]} to test stage microphones by Thursday 3pm`,
   });
 
   if (agentRes.status === 200 || agentRes.status === 201) {

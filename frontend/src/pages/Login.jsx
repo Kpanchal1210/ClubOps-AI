@@ -5,7 +5,6 @@ import {
   Mail,
   Eye,
   EyeOff,
-  Sparkles,
   ArrowRight,
   Loader2,
   AlertCircle,
@@ -27,12 +26,6 @@ export default function Login() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const fillDemoCredentials = () => {
-    setForm({
-      email: "rahul@clubops.org",
-      password: "password123",
-    });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -163,14 +156,6 @@ export default function Login() {
             )}
           </button>
 
-          {/* Quick Fill Demo Credentials */}
-          <button
-            type="button"
-            className="demo-credentials-btn"
-            onClick={fillDemoCredentials}
-          >
-            Fill Demo Credentials (Rahul Patel)
-          </button>
 
           <p className="auth-footer">
             Don't have an account yet?{" "}

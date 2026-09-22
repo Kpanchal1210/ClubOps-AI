@@ -1,21 +1,13 @@
 const AgentAction = require("../models/AgentAction");
-
-let runAgent;
-try {
-    runAgent = require("../ai/agent/agent").runAgent;
-} catch (e) {
-    runAgent = null;
-}
+const { runAgent } = require("../ai/agent/agent");
 
 
 // POST /api/agent/command
 const createAgentAction = async (req, res) => {
     try {
-        let {
+
+        const {
             command,
-            intent,
-            tool,
-            parameters,
             eventId
         } = req.body;
 
@@ -26,49 +18,25 @@ const createAgentAction = async (req, res) => {
             });
         }
 
-        let result = null;
-        let status = "pending";
-
-        if (!intent && runAgent && eventId) {
-            try {
-                const agentRes = await runAgent({
-                    command,
-                    userId: req.user.userId,
-                    eventId
-                });
-                intent = agentRes.intent;
-                parameters = agentRes.parameters;
-                result = agentRes.result;
-                status = "completed";
-            } catch (err) {
-                console.error("runAgent error:", err.message);
-                intent = intent || "UNKNOWN";
-                status = "failed";
-                result = { error: err.message };
-            }
-        }
-
-        const action = await AgentAction.create({
-            userId: req.user.userId,
-            eventId: eventId || undefined,
+        const result = await runAgent({
             command,
-            intent: intent || "GENERAL_QUERY",
-            tool: tool || (intent ? intent.toLowerCase() : undefined),
-            parameters: parameters || {},
-            status: status || "pending",
-            result
+            userId: req.user.userId,
+            eventId
         });
 
-        res.status(201).json({
+        return res.status(200).json({
             success: true,
-            message: "Agent action created",
-            data: action
+            message: "Agent command executed successfully",
+            data: result
         });
 
     } catch (error) {
-        res.status(500).json({
+
+        console.error("Agent command error:", error);
+
+        return res.status(500).json({
             success: false,
-            message: "Failed to create agent action",
+            message: "Failed to execute agent command",
             error: error.message
         });
     }
